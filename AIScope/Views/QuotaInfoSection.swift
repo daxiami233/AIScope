@@ -45,6 +45,9 @@ struct QuotaInfoSection: View {
             return percent
         }
         if pool.unit == "%" {
+            if let reset = pool.resetsInDescription {
+                return "\(reset) \(pool.remainingDisplay)"
+            }
             return "\(pool.remainingDisplay)"
         }
         let values = "\(pool.remainingDisplay)/\(pool.limitDisplay) \(pool.unit)"

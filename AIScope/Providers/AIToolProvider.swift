@@ -74,6 +74,7 @@ enum ProviderError: LocalizedError {
 // MARK: - Shared date parsing
 
 /// ISO8601 解析：先尝试带毫秒格式，失败后回退到无毫秒的互联网日期格式。
+/// 支持简单日期格式（如 "2026-07-01"）。
 /// 供各 Provider 共用，避免每个文件重复实现。
 func parseISO8601(_ string: String) -> Date? {
     let withMs = ISO8601DateFormatter()
@@ -81,5 +82,11 @@ func parseISO8601(_ string: String) -> Date? {
     if let d = withMs.date(from: string) { return d }
     let plain = ISO8601DateFormatter()
     plain.formatOptions = [.withInternetDateTime]
-    return plain.date(from: string)
+    if let d = plain.date(from: string) { return d }
+    
+    // 支持简单日期格式 "yyyy-MM-dd"
+    let dateFormatter = DateFormatter()
+    dateFormatter.dateFormat = "yyyy-MM-dd"
+    dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+    return dateFormatter.date(from: string)
 }

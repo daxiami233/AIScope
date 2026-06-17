@@ -551,7 +551,7 @@ struct SettingsView: View {
         switch id {
         case "cursor":
             let path = home.appendingPathComponent("Library/Application Support/Cursor/User/globalStorage/state.vscdb").path
-            return ("本地 SQLite (Cursor)", fm.fileExists(atPath: path) ? "已检测到" : "未检测到")
+            return ("本地 SQLite (Cursor)", fm.fileExists(atPath: path) ? "已检测" : "未检测")
         case "claude-code":
             let hasKeychain = !KeychainService.readAllGenericPasswords(
                 service: "Claude Code-credentials",

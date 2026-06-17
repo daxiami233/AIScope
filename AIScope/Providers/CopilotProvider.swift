@@ -203,7 +203,7 @@ final class CopilotProvider: AIToolProvider, Sendable {
 
     private func buildSnapshot(from response: CopilotUserResponse) -> UsageSnapshot {
         var pools:  [UsagePool]  = []
-        var extras: [UsageExtra] = []
+        var extras: [UsageExtra]  = []
         let billingCycleEnd = extractBillingCycleEnd(from: response)
 
         if let credits = response.ai_credits {
