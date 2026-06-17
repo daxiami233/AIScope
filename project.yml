@@ -1,0 +1,50 @@
+name: AIScope
+
+options:
+  bundleIdPrefix: com.aiscope
+  deploymentTarget:
+    macOS: "14.0"
+  defaultConfig: Debug
+
+configs:
+  Debug: debug
+  Release: release
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    ENABLE_HARDENED_RUNTIME: YES
+
+targets:
+  AIScope:
+    type: application
+    platform: macOS
+    deploymentTarget: "14.0"
+
+    sources:
+      - path: AIScope
+        excludes:
+          - "**/*.plist"
+          - "**/*.entitlements"
+
+    info:
+      path: AIScope/Resources/Info.plist
+      properties:
+        LSUIElement: true
+        CFBundleName: AIScope
+        CFBundleShortVersionString: "1.0"
+        CFBundleVersion: "1"
+        CFBundleDevelopmentRegion: zh_CN
+
+    entitlements:
+      path: AIScope/Resources/AIScope.entitlements
+
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.aiscope.app
+        CODE_SIGN_ENTITLEMENTS: AIScope/Resources/AIScope.entitlements
+        INFOPLIST_FILE: AIScope/Resources/Info.plist
+        # 以 .dmg 分发，不走 App Store 沙盒
+        ENABLE_APP_SANDBOX: NO

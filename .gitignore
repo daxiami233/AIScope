@@ -1,0 +1,38 @@
+.DS_Store
+
+# Xcode user state
+*.xcuserstate
+xcuserdata/
+*.xcscmblueprint
+
+# Build output
+build/
+DerivedData/
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.resolved
+
+# App packaging
+*.app
+*.dmg
+*.pkg
+
+# Logs and temporary files
+*.log
+*.tmp
+*.bak
+*.orig
+*~
+
+# Local environment
+.env
+.env.*
+
+# Internal planning docs
+PRD.md
+docs/PRD.md

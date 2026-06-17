@@ -1,0 +1,212 @@
+import SwiftUI
+
+// MARK: - PopoverView
+
+/// 从 NSPopover 弹出的主面板。
+struct PopoverView: View {
+
+    @ObservedObject var dataManager: DataManager
+    @ObservedObject var settings: AppSettings
+    let openSettingsAction: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            headerBar
+            Divider()
+
+            if dataManager.activeProviders.isEmpty {
+                if dataManager.isDetectingProviders {
+                    detectingPlaceholder
+                } else {
+                    emptyPlaceholder
+                }
+            } else {
+                toolList
+            }
+
+            Divider()
+            footerBar
+        }
+        .background(.regularMaterial)
+        .frame(width: 330)
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    // MARK: - 标题栏
+
+    private var headerBar: some View {
+        HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("AIScope")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+
+                Text(refreshStateText)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+
+            Spacer()
+
+            Button {
+                Task { await dataManager.refresh() }
+            } label: {
+                ZStack {
+                    Circle().fill(refreshButtonBackground)
+                    TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { context in
+                        Image(systemName: "arrow.clockwise")
+                            .font(.system(size: 12, weight: .semibold))
+                            .rotationEffect(.degrees(refreshDegrees(at: context.date)))
+                            .foregroundStyle(dataManager.isRefreshing ? Color.accentColor : Color.primary)
+                    }
+                }
+                .frame(width: 24, height: 24)
+                .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .disabled(dataManager.isRefreshing)
+            .help(dataManager.isRefreshing ? "正在刷新..." : "刷新")
+
+            // 齿轮：点击打开独立 Settings 窗口（不再是 popover 内的 sheet）
+            Button { openSettingsAction() } label: {
+                Image(systemName: "gearshape")
+                    .font(.system(size: 12, weight: .semibold))
+                    .frame(width: 24, height: 24)
+                    .background(Circle().fill(Color.secondary.opacity(0.15)))
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .help("设置…")
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 11)
+    }
+
+    // MARK: - 工具卡片列表
+
+    private var toolList: some View {
+        ScrollView(.vertical, showsIndicators: false) {
+            LazyVStack(spacing: 0) {
+                ForEach(Array(dataManager.activeProviders.enumerated()), id: \.element.id) { index, provider in
+                    let snapshot = dataManager.snapshots[provider.id]
+                        ?? errorPlaceholderSnapshot(for: provider)
+                    let status: ToolStatus = snapshot.isError
+                        ? .offline
+                        : ToolStatus.from(utilization: snapshot.maxUtilization)
+
+                    ToolCardView(snapshot: snapshot, provider: provider, status: status)
+
+                    if index < dataManager.activeProviders.count - 1 {
+                        Divider().padding(.horizontal, 12)
+                    }
+                }
+            }
+        }
+        .frame(maxHeight: 500)
+    }
+
+    // MARK: - 空状态占位
+
+    private var detectingPlaceholder: some View {
+        VStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 28))
+                .foregroundStyle(.secondary)
+            Text("正在检测工具...")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 40)
+    }
+
+    private var emptyPlaceholder: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "magnifyingglass.circle")
+                .font(.system(size: 28))
+                .foregroundStyle(.secondary)
+
+            VStack(spacing: 4) {
+                Text("还没有发现可用账号")
+                    .font(.subheadline.weight(.semibold))
+                Text("请先在对应工具中登录，然后点击刷新重新检测。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Text(dataManager.supportedProviderNames.joined(separator: " · "))
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+                .lineLimit(2)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 24)
+        .padding(.vertical, 34)
+    }
+
+    // MARK: - Footer
+
+    private var footerBar: some View {
+        HStack {
+            Text("\(dataManager.activeProviders.count) 个工具")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+            Spacer()
+            Text(autoRefreshText)
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 7)
+    }
+
+    // MARK: - 辅助方法
+
+    private var refreshButtonBackground: Color {
+        dataManager.isRefreshing
+            ? Color.accentColor.opacity(0.16)
+            : Color.secondary.opacity(0.15)
+    }
+
+    private var refreshStateText: String {
+        if dataManager.isRefreshing { return "正在刷新..." }
+        guard let date = dataManager.lastRefreshed else { return "尚未刷新" }
+        return "刷新于 \(relativeTimeString(from: date))"
+    }
+
+    private var autoRefreshText: String {
+        let interval = settings.refreshInterval
+        guard interval > 0 else { return "手动刷新" }
+        if interval < 3600 { return "每 \(Int(interval / 60)) 分钟刷新" }
+        return "每 \(Int(interval / 3600)) 小时刷新"
+    }
+
+    private func refreshDegrees(at date: Date) -> Double {
+        guard dataManager.isRefreshing else { return 0 }
+        return date.timeIntervalSinceReferenceDate
+            .truncatingRemainder(dividingBy: 1.0) * 360.0
+    }
+
+    private func relativeTimeString(from date: Date) -> String {
+        let elapsed = Date().timeIntervalSince(date)
+        switch elapsed {
+        case ..<60:        return "刚刚"
+        case 60..<3600:    return "\(Int(elapsed / 60)) 分钟前"
+        case 3600..<86400: return "\(Int(elapsed / 3600)) 小时前"
+        default:           return "\(Int(elapsed / 86400)) 天前"
+        }
+    }
+
+    private func errorPlaceholderSnapshot(for provider: any AIToolProvider) -> UsageSnapshot {
+        UsageSnapshot(
+            providerID: provider.id, fetchedAt: Date(),
+            windows: [], pools: [], extras: [],
+            planName: nil, accountEmail: nil, billingCycleEnd: nil,
+            errorMessage: "尚未获取到数据"
+        )
+    }
+}
