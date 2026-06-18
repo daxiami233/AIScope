@@ -9,6 +9,8 @@ struct PopoverView: View {
     @ObservedObject var settings: AppSettings
     let openSettingsAction: () -> Void
 
+    @State private var animateRefresh = false
+
     var body: some View {
         VStack(spacing: 0) {
             headerBar
@@ -52,20 +54,25 @@ struct PopoverView: View {
             Button {
                 Task { await dataManager.refresh() }
             } label: {
-                ZStack {
-                    Circle().fill(refreshButtonBackground)
-                    TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { context in
-                        Image(systemName: "arrow.clockwise")
-                            .font(.system(size: 12, weight: .semibold))
-                            .rotationEffect(.degrees(refreshDegrees(at: context.date)))
-                            .foregroundStyle(dataManager.isRefreshing ? Color.accentColor : Color.primary)
-                    }
-                }
-                .frame(width: 24, height: 24)
-                .contentShape(Circle())
+                Image(systemName: "arrow.clockwise")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(dataManager.isRefreshing ? Color.accentColor : Color.primary)
+                    .rotationEffect(.degrees(animateRefresh ? 360 : 0))
+                    .animation(
+                        dataManager.isRefreshing
+                            ? .linear(duration: 0.9).repeatForever(autoreverses: false)
+                            : .easeOut(duration: 0.25),
+                        value: animateRefresh
+                    )
+                    .frame(width: 24, height: 24)
+                    .background(Circle().fill(refreshButtonBackground))
+                    .contentShape(Circle())
             }
             .buttonStyle(.plain)
             .disabled(dataManager.isRefreshing)
+            .onChange(of: dataManager.isRefreshing) { _, newValue in
+                animateRefresh = newValue
+            }
             .help(dataManager.isRefreshing ? "正在刷新..." : "刷新")
 
             // 齿轮：点击打开独立 Settings 窗口（不再是 popover 内的 sheet）
@@ -78,6 +85,18 @@ struct PopoverView: View {
             }
             .buttonStyle(.plain)
             .help("设置…")
+
+            // 退出按钮
+            Button { NSApplication.shared.terminate(nil) } label: {
+                Image(systemName: "power")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.red)
+                    .frame(width: 24, height: 24)
+                    .background(Circle().fill(Color.red.opacity(0.15)))
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .help("退出 AIScope")
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 11)
@@ -183,12 +202,6 @@ struct PopoverView: View {
         guard interval > 0 else { return "手动刷新" }
         if interval < 3600 { return "每 \(Int(interval / 60)) 分钟刷新" }
         return "每 \(Int(interval / 3600)) 小时刷新"
-    }
-
-    private func refreshDegrees(at date: Date) -> Double {
-        guard dataManager.isRefreshing else { return 0 }
-        return date.timeIntervalSinceReferenceDate
-            .truncatingRemainder(dividingBy: 1.0) * 360.0
     }
 
     private func relativeTimeString(from date: Date) -> String {
