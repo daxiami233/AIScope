@@ -70,7 +70,7 @@ struct SettingsView: View {
 
             Spacer()
 
-            Text("AIScope v1.0")
+            Text("AIScope v0.1.1")
                 .font(.caption2.monospacedDigit())
                 .foregroundStyle(.tertiary)
                 .padding(.bottom, 16)
@@ -163,40 +163,26 @@ struct SettingsView: View {
     }
 
     private var detailHeader: some View {
-        ZStack(alignment: .topTrailing) {
-            VStack(spacing: 10) {
-                Image(systemName: selectedPane.icon)
-                    .font(.system(size: 38, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 82, height: 82)
-                    .background(
-                        RoundedRectangle(cornerRadius: 21)
-                            .fill(selectedPane.color.gradient)
-                    )
-                    .shadow(color: Color.black.opacity(0.22), radius: 8, y: 3)
+        VStack(spacing: 10) {
+            Image(systemName: selectedPane.icon)
+                .font(.system(size: 38, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 82, height: 82)
+                .background(
+                    RoundedRectangle(cornerRadius: 21)
+                        .fill(selectedPane.color.gradient)
+                )
+                .shadow(color: Color.black.opacity(0.22), radius: 8, y: 3)
 
-                Text(selectedPane.title)
-                    .font(.system(size: 34, weight: .bold))
-                Text(selectedPane.subtitle)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 34)
-
-            if selectedPane == .platforms {
-                Button {
-                    Task { await dataManager.refresh() }
-                } label: {
-                    Label("刷新全部", systemImage: "arrow.clockwise")
-                        .labelStyle(.titleAndIcon)
-                }
-                .buttonStyle(.bordered)
-                .disabled(dataManager.isRefreshing || dataManager.isDetectingProviders)
-                .padding(18)
-            }
+            Text(selectedPane.title)
+                .font(.system(size: 34, weight: .bold))
+            Text(selectedPane.subtitle)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
         }
+        .frame(maxWidth: .infinity, minHeight: 190)
+        .padding(.vertical, 24)
         .background(
             RoundedRectangle(cornerRadius: 18)
                 .fill(Color(nsColor: .controlBackgroundColor))
@@ -205,6 +191,20 @@ struct SettingsView: View {
             RoundedRectangle(cornerRadius: 18)
                 .stroke(Color.white.opacity(0.55))
         )
+        .overlay(alignment: .topTrailing) {
+            if selectedPane == .platforms {
+                Button {
+                    Task { await dataManager.refresh() }
+                } label: {
+                    Label("刷新全部", systemImage: "arrow.clockwise")
+                        .labelStyle(.titleAndIcon)
+                        .frame(width: 92)
+                }
+                .buttonStyle(.bordered)
+                .disabled(dataManager.isRefreshing || dataManager.isDetectingProviders)
+                .padding(18)
+            }
+        }
         .shadow(color: Color.black.opacity(0.035), radius: 12, y: 6)
     }
 
@@ -759,7 +759,7 @@ struct SettingsView: View {
         if let message {
             Text(message)
                 .font(.caption)
-                .foregroundStyle(message == "已保存" || message == "已登录" || message == "已检测用户名" || message == "Cookie 已保存" ? .green : .secondary)
+                .foregroundStyle(message == "已保存" || message == "已登录" || message == "已检测用户名" || message == "Cookie 已保存" || message == "登录态已保存" ? .green : .secondary)
         }
     }
 
@@ -853,6 +853,14 @@ struct SettingsView: View {
 
 // MARK: - MiMo Platform Login
 
+private var integrationLoginWindowSize: CGSize {
+    let visible = NSScreen.main?.visibleFrame.size ?? CGSize(width: 1440, height: 900)
+    return CGSize(
+        width: min(max(visible.width * 0.96, 980), visible.width),
+        height: min(max(visible.height * 0.92, 720), visible.height)
+    )
+}
+
 private struct MimoPlatformLoginView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var status = "登录后会自动保存 Cookie"
@@ -885,7 +893,7 @@ private struct MimoPlatformLoginView: View {
                 onStatus: { status = $0 }
             )
         }
-        .frame(width: 980, height: 720)
+        .frame(width: integrationLoginWindowSize.width, height: integrationLoginWindowSize.height)
     }
 }
 

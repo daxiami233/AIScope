@@ -2,14 +2,14 @@ import Foundation
 
 // MARK: - MimocodeProvider
 
-/// Mimocode 本地状态提供者。
+/// MimoCode 本地状态提供者。
 ///
-/// Mimocode Token Plan 本地保存 API key 与 OpenAI 兼容地址。
-/// Mimocode 自身通过 OAuth 登录写入 auth.json；额度接口使用 AIScope 统一凭证库中的控制台 Cookie。
+/// MimoCode Token Plan 本地保存 API key 与 OpenAI 兼容地址。
+/// MimoCode 自身通过 OAuth 登录写入 auth.json；额度接口使用 AIScope 统一凭证库中的控制台 Cookie。
 final class MimocodeProvider: AIToolProvider, Sendable {
 
     let id = "mimocode"
-    let displayName = "Mimocode"
+    let displayName = "MimoCode"
     let dashboardURL = URL(string: "https://mimo.xiaomi.com")!
 
     private static let authPath = NSString(string: "~/.local/share/mimocode/auth.json").expandingTildeInPath
@@ -22,7 +22,7 @@ final class MimocodeProvider: AIToolProvider, Sendable {
 
     func fetchUsage() async throws -> UsageSnapshot {
         guard let auth = loadAuth() else {
-            throw ProviderError.actionRequired("请在设置中点击“登录 MiMo”，完成 Mimocode 官方登录后刷新")
+            throw ProviderError.actionRequired("请在设置中点击“登录 MiMo”，完成 MimoCode 官方登录后刷新")
         }
 
         guard let cookie = Self.readPlatformCookie(), !cookie.isEmpty else {

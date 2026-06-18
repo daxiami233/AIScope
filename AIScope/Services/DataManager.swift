@@ -2,6 +2,7 @@ import Foundation
 import Combine
 import UserNotifications
 import OSLog
+import AppKit
 
 private let dataManagerLogger = Logger(subsystem: "com.aiscope.app", category: "DataManager")
 
@@ -199,6 +200,11 @@ final class DataManager: ObservableObject {
         }
     }
 
+    func clearSnapshot(for providerID: String) {
+        snapshots.removeValue(forKey: providerID)
+        saveSnapshotsToCache()
+    }
+
     // MARK: - 定时器
 
     func startAutoRefresh() {
@@ -285,6 +291,7 @@ final class DataManager: ObservableObject {
         content.title = "\(displayName) 剩余额度偏低"
         content.body  = "当前剩余额度约 \(remainingPercent)%，建议留意使用节奏"
         content.sound = .default
+        content.attachments = notificationIconAttachments()
 
         let request = UNNotificationRequest(
             identifier: "aiscope-alert-\(providerID)",
@@ -345,6 +352,7 @@ final class DataManager: ObservableObject {
         content.title = "\(displayName) 额度已重置"
         content.body  = "额度周期已进入新的重置周期"
         content.sound = .default
+        content.attachments = notificationIconAttachments()
 
         let request = UNNotificationRequest(
             identifier: "aiscope-reset-\(providerID)-\(Int(Date().timeIntervalSince1970))",
@@ -353,6 +361,52 @@ final class DataManager: ObservableObject {
         )
         UNUserNotificationCenter.current().add(request) { error in
             if let error { dataManagerLogger.error("重置通知发送失败：\(error.localizedDescription)") }
+        }
+    }
+
+    private func notificationIconAttachments() -> [UNNotificationAttachment] {
+        guard let iconURL = notificationIconURL() else {
+            return []
+        }
+
+        do {
+            let attachment = try UNNotificationAttachment(
+                identifier: "aiscope-app-icon",
+                url: iconURL,
+                options: nil
+            )
+            return [attachment]
+        } catch {
+            dataManagerLogger.error("通知图标加载失败：\(error.localizedDescription)")
+            return []
+        }
+    }
+
+    private func notificationIconURL() -> URL? {
+        let cacheDirectory = FileManager.default.urls(
+            for: .cachesDirectory,
+            in: .userDomainMask
+        ).first
+        guard let cacheDirectory else { return nil }
+
+        let iconURL = cacheDirectory.appendingPathComponent("AIScopeNotificationIcon.png")
+        if FileManager.default.fileExists(atPath: iconURL.path) {
+            return iconURL
+        }
+
+        guard let tiff = NSApp.applicationIconImage.tiffRepresentation,
+              let bitmap = NSBitmapImageRep(data: tiff),
+              let png = bitmap.representation(using: .png, properties: [:])
+        else {
+            return nil
+        }
+
+        do {
+            try png.write(to: iconURL, options: .atomic)
+            return iconURL
+        } catch {
+            dataManagerLogger.error("通知图标写入失败：\(error.localizedDescription)")
+            return nil
         }
     }
 

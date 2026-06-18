@@ -12,12 +12,16 @@ DerivedData/
 *.dSYM.zip
 *.dSYM
 
+# Local test harness
+test/
+
 # Swift Package Manager
 .build/
 .swiftpm/
 Package.resolved
 
 # App packaging
+dist/
 *.app
 *.dmg
 *.pkg
