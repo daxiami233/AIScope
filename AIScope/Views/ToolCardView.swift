@@ -26,8 +26,8 @@ struct ToolCardView: View {
                 }
             }
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 11)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
     }
 
     // MARK: - 标题行
@@ -40,11 +40,14 @@ struct ToolCardView: View {
 
             if let plan = snapshot.planName {
                 Text(plan)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 2)
-                    .background(RoundedRectangle(cornerRadius: 4).fill(Color.secondary.opacity(0.15)))
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(planColor(for: plan))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(
+                        RoundedRectangle(cornerRadius: 5)
+                            .fill(planColor(for: plan).opacity(0.15))
+                    )
             }
 
             Spacer()
@@ -114,5 +117,15 @@ struct ToolCardView: View {
             return quotaExtra.value
         }
         return "暂无可显示额度"
+    }
+
+    private func planColor(for plan: String) -> Color {
+        let lower = plan.lowercased()
+        if lower.contains("max") { return .orange }
+        if lower.contains("pro") { return .purple }
+        if lower.contains("standard") { return .blue }
+        if lower.contains("lite") { return .teal }
+        if lower.contains("年度") || lower.contains("annual") { return .orange }
+        return .accentColor
     }
 }

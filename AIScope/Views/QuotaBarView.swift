@@ -22,17 +22,17 @@ struct QuotaBarView: View {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 if let leadingText {
                     Text(leadingText)
-                        .font(.caption.monospacedDigit())
+                        .font(.caption2.monospacedDigit())
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
                 Text(label)
-                    .font(.caption)
+                    .font(.caption2)
                     .foregroundStyle(isHighlighted ? Color.orange : Color.primary)
                     .lineLimit(1)
                 Spacer()
                 Text(trailingText)
-                    .font(.caption.monospacedDigit())
+                    .font(.caption2.monospacedDigit())
                     .foregroundStyle(isHighlighted ? Color.orange : Color.secondary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.85)

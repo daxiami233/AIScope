@@ -14,7 +14,6 @@ struct PopoverView: View {
     var body: some View {
         VStack(spacing: 0) {
             headerBar
-            Divider()
 
             if dataManager.activeProviders.isEmpty {
                 if dataManager.isDetectingProviders {
@@ -26,7 +25,6 @@ struct PopoverView: View {
                 toolList
             }
 
-            Divider()
             footerBar
         }
         .background(.regularMaterial)
@@ -106,7 +104,7 @@ struct PopoverView: View {
 
     private var toolList: some View {
         ScrollView(.vertical, showsIndicators: false) {
-            LazyVStack(spacing: 0) {
+            LazyVStack(spacing: 8) {
                 ForEach(Array(dataManager.activeProviders.enumerated()), id: \.element.id) { index, provider in
                     let snapshot = dataManager.snapshots[provider.id]
                         ?? errorPlaceholderSnapshot(for: provider)
@@ -115,12 +113,14 @@ struct PopoverView: View {
                         : ToolStatus.from(utilization: snapshot.maxUtilization)
 
                     ToolCardView(snapshot: snapshot, provider: provider, status: status)
-
-                    if index < dataManager.activeProviders.count - 1 {
-                        Divider().padding(.horizontal, 12)
-                    }
+                        .background(
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(Color(nsColor: .controlBackgroundColor))
+                        )
                 }
             }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
         }
         .frame(maxHeight: 500)
     }
@@ -171,16 +171,10 @@ struct PopoverView: View {
 
     private var footerBar: some View {
         HStack {
-            Text("\(dataManager.activeProviders.count) 个工具")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
             Spacer()
-            Text(autoRefreshText)
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 7)
+        .padding(.vertical, 4)
     }
 
     // MARK: - 辅助方法
@@ -195,13 +189,6 @@ struct PopoverView: View {
         if dataManager.isRefreshing { return "正在刷新..." }
         guard let date = dataManager.lastRefreshed else { return "尚未刷新" }
         return "刷新于 \(relativeTimeString(from: date))"
-    }
-
-    private var autoRefreshText: String {
-        let interval = settings.refreshInterval
-        guard interval > 0 else { return "手动刷新" }
-        if interval < 3600 { return "每 \(Int(interval / 60)) 分钟刷新" }
-        return "每 \(Int(interval / 3600)) 小时刷新"
     }
 
     private func relativeTimeString(from date: Date) -> String {

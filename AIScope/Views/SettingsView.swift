@@ -26,21 +26,35 @@ struct SettingsView: View {
         (3600, "1 小时"),
         (0,    "手动"),
     ]
-    private let sidebarHorizontalPadding: CGFloat = 18
-    private let sidebarItemHorizontalPadding: CGFloat = 12
-    private let sidebarIconSize: CGFloat = 32
-    private let sidebarHeaderIconSize: CGFloat = 44
-    private let sidebarItemSpacing: CGFloat = 12
-    private let sidebarHeaderSpacing: CGFloat = 12
 
     var body: some View {
-        HStack(spacing: 0) {
-            sidebar
-            Divider()
+        VStack(spacing: 0) {
+            ZStack {
+                tabBar
+
+                if selectedPane == .platforms {
+                    HStack {
+                        Spacer()
+                        Button {
+                            Task { await dataManager.refresh() }
+                        } label: {
+                            Label("刷新全部", systemImage: "arrow.clockwise")
+                                .labelStyle(.titleAndIcon)
+                                .frame(width: 92)
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(dataManager.isRefreshing || dataManager.isDetectingProviders)
+                    }
+                }
+            }
+            .padding(.horizontal, 40)
+            .padding(.vertical, 14)
+            .background(.regularMaterial)
+
             detailPane
         }
         .frame(minWidth: 980, idealWidth: 1040, minHeight: 680, idealHeight: 760)
-        .background(Color(nsColor: .underPageBackgroundColor))
+        .background(.regularMaterial)
         .onAppear {
             loadMimoPlatformCookie()
         }
@@ -52,88 +66,41 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - Sidebar
+    // MARK: - Tab Bar
 
-    private var sidebar: some View {
-        VStack(spacing: 0) {
-            sidebarHeader
-                .padding(.horizontal, sidebarHorizontalPadding)
-                .padding(.top, 24)
-                .padding(.bottom, 18)
-
-            VStack(spacing: 2) {
-                ForEach(SettingsPane.allCases) { pane in
-                    sidebarRow(pane)
-                }
+    private var tabBar: some View {
+        HStack(spacing: 4) {
+            ForEach(SettingsPane.allCases) { pane in
+                tabButton(pane)
             }
-            .padding(.horizontal, sidebarHorizontalPadding)
-
-            Spacer()
-
-            Text("AIScope v0.1.1")
-                .font(.caption2.monospacedDigit())
-                .foregroundStyle(.tertiary)
-                .padding(.bottom, 16)
         }
-        .frame(width: 255)
-        .background(.regularMaterial)
+        .padding(4)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color(nsColor: .controlBackgroundColor))
+        )
     }
 
-    private var sidebarHeader: some View {
-        HStack(spacing: sidebarHeaderSpacing) {
-            Image(nsImage: NSApp.applicationIconImage)
-                .resizable()
-                .scaledToFit()
-                .frame(width: sidebarHeaderIconSize, height: sidebarHeaderIconSize)
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text("AIScope")
-                    .font(.system(size: 22, weight: .semibold))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.85)
-                Text("额度监控")
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-            
-            Spacer()
-        }
-        .padding(.horizontal, sidebarItemHorizontalPadding)
-    }
-
-    private func sidebarRow(_ pane: SettingsPane) -> some View {
+    private func tabButton(_ pane: SettingsPane) -> some View {
         Button {
             withAnimation(.easeInOut(duration: 0.15)) {
                 selectedPane = pane
             }
         } label: {
-            HStack(spacing: sidebarItemSpacing) {
+            HStack(spacing: 6) {
                 Image(systemName: pane.icon)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(selectedPane == pane ? Color.secondary : .white)
-                    .frame(width: sidebarIconSize, height: sidebarIconSize)
-                    .background(
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(selectedPane == pane ? AnyShapeStyle(Color.white.opacity(0.92)) : AnyShapeStyle(pane.color.gradient))
-                            .shadow(color: Color.black.opacity(selectedPane == pane ? 0.16 : 0.10), radius: 2, y: 1)
-                    )
-
+                    .font(.system(size: 13, weight: .medium))
                 Text(pane.title)
-                    .font(.system(size: 16, weight: selectedPane == pane ? .semibold : .medium))
-                    .foregroundStyle(selectedPane == pane ? Color.white : Color.primary)
-
-                Spacer()
+                    .font(.system(size: 13, weight: .medium))
             }
-            .padding(.horizontal, selectedPane == pane ? 12 : sidebarItemHorizontalPadding)
-            .padding(.vertical, 7)
+            .foregroundStyle(selectedPane == pane ? Color.white : Color.secondary)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
             .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(selectedPane == pane ? AnyShapeStyle(Color.accentColor.gradient) : AnyShapeStyle(Color.clear))
-                    .shadow(color: Color.accentColor.opacity(selectedPane == pane ? 0.18 : 0), radius: 8, y: 3)
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(selectedPane == pane ? AnyShapeStyle(pane.color.gradient) : AnyShapeStyle(Color.clear))
             )
-            .contentShape(RoundedRectangle(cornerRadius: 12))
+            .contentShape(RoundedRectangle(cornerRadius: 8))
         }
         .buttonStyle(.plain)
     }
@@ -143,8 +110,6 @@ struct SettingsView: View {
     private var detailPane: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                detailHeader
-
                 switch selectedPane {
                 case .platforms:
                     platformsContent
@@ -155,57 +120,11 @@ struct SettingsView: View {
                 }
             }
             .padding(.horizontal, 40)
-            .padding(.vertical, 26)
-            .frame(maxWidth: 860, alignment: .leading)
+            .padding(.vertical, 20)
+            .frame(maxWidth: 960, alignment: .leading)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(nsColor: .windowBackgroundColor))
-    }
-
-    private var detailHeader: some View {
-        VStack(spacing: 10) {
-            Image(systemName: selectedPane.icon)
-                .font(.system(size: 38, weight: .semibold))
-                .foregroundStyle(.white)
-                .frame(width: 82, height: 82)
-                .background(
-                    RoundedRectangle(cornerRadius: 21)
-                        .fill(selectedPane.color.gradient)
-                )
-                .shadow(color: Color.black.opacity(0.22), radius: 8, y: 3)
-
-            Text(selectedPane.title)
-                .font(.system(size: 34, weight: .bold))
-            Text(selectedPane.subtitle)
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity, minHeight: 190)
-        .padding(.vertical, 24)
-        .background(
-            RoundedRectangle(cornerRadius: 18)
-                .fill(Color(nsColor: .controlBackgroundColor))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 18)
-                .stroke(Color.white.opacity(0.55))
-        )
-        .overlay(alignment: .topTrailing) {
-            if selectedPane == .platforms {
-                Button {
-                    Task { await dataManager.refresh() }
-                } label: {
-                    Label("刷新全部", systemImage: "arrow.clockwise")
-                        .labelStyle(.titleAndIcon)
-                        .frame(width: 92)
-                }
-                .buttonStyle(.bordered)
-                .disabled(dataManager.isRefreshing || dataManager.isDetectingProviders)
-                .padding(18)
-            }
-        }
-        .shadow(color: Color.black.opacity(0.035), radius: 12, y: 6)
+        .animation(nil, value: selectedPane)
     }
 
     // MARK: - Platforms
@@ -491,24 +410,6 @@ struct SettingsView: View {
                 }
             }
             .id(configRefreshID)
-
-            if dataManager.orderedProviders.contains(where: { $0.id == "github-copilot" }) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("GitHub Copilot 授权")
-                        .font(.headline)
-                        .padding(.horizontal, 4)
-                    settingsGroup { copilotConfigView }
-                }
-            }
-
-            if dataManager.orderedProviders.contains(where: { $0.id == "mimocode" }) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("MiMo Token Plan 授权")
-                        .font(.headline)
-                        .padding(.horizontal, 4)
-                    settingsGroup { mimoConfigView }
-                }
-            }
         }
     }
 
@@ -516,7 +417,7 @@ struct SettingsView: View {
         let isDetected = dataManager.detectedProviderIDs.contains(provider.id)
         let (source, status) = providerConfigSummary(provider.id)
         let v = visual(for: provider.id)
-        let isActive = status.contains("已登录") || status.contains("已检测")
+        let isActive = status.contains("已登录") || status.contains("检测到")
 
         return HStack(spacing: 12) {
             providerIcon(visual: v, isEnabled: isDetected)
@@ -531,18 +432,93 @@ struct SettingsView: View {
 
             Spacer(minLength: 12)
 
-            Text(status)
-                .font(.caption.weight(.medium))
-                .foregroundStyle(isActive ? .green : .secondary)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 3)
-                .background(
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(isActive ? Color.green.opacity(0.12) : Color.secondary.opacity(0.10))
-                )
+            if provider.id == "github-copilot" {
+                copilotActionButton
+            } else if provider.id == "mimocode" {
+                mimoActionButton
+            } else {
+                Text(status)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(isActive ? .green : .secondary)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(isActive ? Color.green.opacity(0.12) : Color.secondary.opacity(0.10))
+                    )
+            }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 13)
+    }
+
+    private var copilotActionButton: some View {
+        let hasToken = CopilotProvider.readOAuthToken(allowUserInteraction: false) != nil
+        return HStack(spacing: 8) {
+            if hasToken && !isCopilotLoggingIn {
+                Text("已登录")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.green)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(Color.green.opacity(0.12))
+                    )
+                Button {
+                    startCopilotLogin()
+                } label: {
+                    Text("切换账号")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+            } else {
+                Button {
+                    startCopilotLogin()
+                } label: {
+                    Label(isCopilotLoggingIn ? "等待 GitHub" : "登录", systemImage: "person.crop.circle.badge.checkmark")
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .disabled(isCopilotLoggingIn)
+            }
+            if isCopilotLoggingIn {
+                ProgressView()
+                    .controlSize(.small)
+            }
+        }
+    }
+
+    private var mimoActionButton: some View {
+        let hasCookie = MimocodeProvider.readPlatformCookie(allowUserInteraction: false) != nil
+        return HStack(spacing: 8) {
+            if hasCookie {
+                Text("已登录")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.green)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(Color.green.opacity(0.12))
+                    )
+                Button {
+                    isShowingMimoPlatformLogin = true
+                } label: {
+                    Text("切换账号")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+            } else {
+                Button {
+                    isShowingMimoPlatformLogin = true
+                } label: {
+                    Label("登录", systemImage: "globe")
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+            }
+        }
     }
 
     private func providerConfigSummary(_ id: String) -> (source: String, status: String) {
@@ -551,7 +527,7 @@ struct SettingsView: View {
         switch id {
         case "cursor":
             let path = home.appendingPathComponent("Library/Application Support/Cursor/User/globalStorage/state.vscdb").path
-            return ("本地 SQLite (Cursor)", fm.fileExists(atPath: path) ? "已检测" : "未检测")
+            return ("本地 SQLite (Cursor)", fm.fileExists(atPath: path) ? "检测到配置文件" : "未检测到配置文件")
         case "claude-code":
             let hasKeychain = !KeychainService.readAllGenericPasswords(
                 service: "Claude Code-credentials",
@@ -569,98 +545,30 @@ struct SettingsView: View {
                 allowUserInteraction: false
             ) != nil
             if hasKeychain { return ("macOS Keychain", "已登录") }
-            if hasFile { return ("~/.codex/auth.json", "已登录") }
+            if hasFile { return ("~/.codex/auth.json", "检测到配置文件") }
             return ("Keychain 或 auth.json", "未登录")
         case "mimocode":
             let authPath = home.appendingPathComponent(".local/share/mimocode/auth.json").path
             let hasAuth = fm.fileExists(atPath: authPath)
             let hasCookie = MimocodeProvider.readPlatformCookie(allowUserInteraction: false) != nil
             if hasCookie { return ("平台 Cookie (Keychain)", "已登录") }
-            if hasAuth { return ("本地 auth.json", "已检测 (需登录平台)") }
+            if hasAuth { return ("本地 auth.json", "检测到配置文件，需登录平台") }
             return ("auth.json + 平台 Cookie", "未登录")
         case "qoder":
             let cnExists = fm.fileExists(atPath: NSString(string: "~/.qoder-cn").expandingTildeInPath)
             let cliExists = fm.fileExists(atPath: NSString(string: "~/.qoder-cli").expandingTildeInPath)
-            if cnExists { return ("本地日志 (~/.qoder-cn)", "已检测") }
-            if cliExists { return ("本地日志 (~/.qoder-cli)", "已检测") }
-            return ("本地日志", "未安装")
+            if cnExists { return ("本地日志 (~/.qoder-cn)", "检测到本地日志") }
+            if cliExists { return ("本地日志 (~/.qoder-cli)", "检测到本地日志") }
+            return ("本地日志", "未检测到本地日志")
         case "zcode-glm":
             let logsPath = home.appendingPathComponent(".zcode/v2/logs").path
             let cachePath = home.appendingPathComponent(".zcode/v2/coding-plan-cache.json").path
-            if fm.fileExists(atPath: logsPath) { return ("本地日志 (~/.zcode)", "已检测") }
-            if fm.fileExists(atPath: cachePath) { return ("ZCode 本地缓存", "已检测") }
-            return ("ZCode 本地日志", "未安装")
+            if fm.fileExists(atPath: logsPath) { return ("本地日志 (~/.zcode)", "检测到本地日志") }
+            if fm.fileExists(atPath: cachePath) { return ("ZCode 本地缓存", "检测到本地缓存") }
+            return ("ZCode 本地日志", "未检测到本地日志")
         default:
             return ("未知", "未知")
         }
-    }
-
-    private var copilotConfigView: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
-                Button {
-                    startCopilotLogin()
-                } label: {
-                    Label(isCopilotLoggingIn ? "等待 GitHub" : "登录 GitHub", systemImage: "person.crop.circle.badge.checkmark")
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.regular)
-                .disabled(isCopilotLoggingIn)
-
-                if isCopilotLoggingIn {
-                    ProgressView()
-                        .controlSize(.small)
-                }
-
-                statusMessage(copilotLoginMessage)
-                Spacer()
-            }
-
-            if let copilotLoginCode {
-                HStack(spacing: 10) {
-                    Text(copilotLoginCode)
-                        .font(.system(.title3, design: .monospaced).weight(.semibold))
-                        .foregroundStyle(.primary)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(Color.accentColor.opacity(0.12))
-                        )
-
-                    Text("验证码已复制，请在浏览器中确认。")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            } else {
-                Text("将在系统浏览器打开 GitHub 授权，登录完成后自动刷新 Copilot 额度。")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(12)
-    }
-
-    private var mimoConfigView: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
-                Button {
-                    isShowingMimoPlatformLogin = true
-                } label: {
-                    Label("登录 MiMo", systemImage: "globe")
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.regular)
-
-                statusMessage(mimoCookieMessage)
-                Spacer()
-            }
-
-            Text("将在内置窗口打开 MiMo Token Plan，登录完成后自动保存平台登录态并刷新额度。")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-        .padding(12)
     }
 
     // MARK: - Shared UI
@@ -675,14 +583,9 @@ struct SettingsView: View {
             content()
         }
         .background(
-            RoundedRectangle(cornerRadius: 18)
+            RoundedRectangle(cornerRadius: 12)
                 .fill(Color(nsColor: .controlBackgroundColor))
         )
-        .overlay(
-            RoundedRectangle(cornerRadius: 18)
-                .stroke(Color.white.opacity(0.55))
-        )
-        .shadow(color: Color.black.opacity(0.035), radius: 10, y: 5)
     }
 
     private func settingRow<Accessory: View>(
@@ -822,9 +725,13 @@ struct SettingsView: View {
                 }
             } catch {
                 await MainActor.run {
+                    copilotLoginMessage = "登录超时或已取消"
+                }
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                await MainActor.run {
                     isCopilotLoggingIn = false
                     copilotLoginCode = nil
-                    copilotLoginMessage = error.localizedDescription
+                    copilotLoginMessage = nil
                 }
             }
         }
