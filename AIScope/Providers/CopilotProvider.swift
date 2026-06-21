@@ -13,9 +13,6 @@ final class CopilotProvider: AIToolProvider, Sendable {
     let displayName  = "GitHub Copilot"
     let dashboardURL = URL(string: "https://github.com/settings/copilot")!
 
-    static let tokenService = "AIScope.GitHubCopilot"
-    static let oauthTokenAccount = "oauthToken"
-    static let usernameAccount = "username"
     private static let githubOAuthClientID = "01ab8ac9400c4e429b23"
     private static let githubOAuthScopes = "user:email"
     private static let oauthTokenCache = KeychainValueCache()
@@ -64,7 +61,6 @@ final class CopilotProvider: AIToolProvider, Sendable {
 
     static func clearOAuthToken() throws {
         try AIScopeCredentialStore.update { $0.copilotOAuthToken = nil }
-        try? KeychainService.deleteGenericPassword(service: tokenService, account: oauthTokenAccount)
         oauthTokenCache.write(nil)
     }
 

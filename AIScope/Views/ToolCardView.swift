@@ -9,6 +9,7 @@ struct ToolCardView: View {
     let snapshot: UsageSnapshot
     let provider: any AIToolProvider
     let status:   ToolStatus
+    let reauthenticateAction: (() -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -68,25 +69,23 @@ struct ToolCardView: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            Link(destination: provider.dashboardURL) {
-                HStack(spacing: 4) {
-                    Image(systemName: "arrow.up.right.square").font(.caption)
-                    Text("打开官网").font(.caption)
-                }
-                .foregroundStyle(.blue)
-            }
+            reauthenticateButton
         }
     }
 
     private var staleWarningSection: some View {
-        HStack(alignment: .top, spacing: 6) {
-            Image(systemName: "wifi.exclamationmark")
-                .foregroundStyle(.orange)
-                .font(.caption)
-            Text("本次刷新失败，正在显示上次成功数据")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Spacer(minLength: 0)
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .top, spacing: 6) {
+                Image(systemName: snapshot.requiresUserAction ? "exclamationmark.triangle.fill" : "wifi.exclamationmark")
+                    .foregroundStyle(.orange)
+                    .font(.caption)
+                Text(staleWarningText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
+            }
+            reauthenticateButton
         }
         .padding(.bottom, 6)
         .help(snapshot.errorMessage ?? "刷新失败")
@@ -117,6 +116,28 @@ struct ToolCardView: View {
             return quotaExtra.value
         }
         return "暂无可显示额度"
+    }
+
+    private var staleWarningText: String {
+        guard snapshot.requiresUserAction, let message = snapshot.errorMessage else {
+            return "本次刷新失败，正在显示上次成功数据"
+        }
+        return "\(message)，正在显示上次成功数据"
+    }
+
+    @ViewBuilder
+    private var reauthenticateButton: some View {
+        if snapshot.requiresUserAction, let reauthenticateAction {
+            Button {
+                reauthenticateAction()
+            } label: {
+                Label("重新登录", systemImage: "person.crop.circle.badge.exclamationmark")
+                    .font(.caption.weight(.medium))
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.mini)
+            .help("重新登录 \(provider.displayName)")
+        }
     }
 
     private func planColor(for plan: String) -> Color {

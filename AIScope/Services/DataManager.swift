@@ -2,7 +2,6 @@ import Foundation
 import Combine
 import UserNotifications
 import OSLog
-import AppKit
 
 private let dataManagerLogger = Logger(subsystem: "com.aiscope.app", category: "DataManager")
 
@@ -11,7 +10,7 @@ private let dataManagerLogger = Logger(subsystem: "com.aiscope.app", category: "
 /// TaskGroup 内部传递结果用，需要 Sendable（Swift 6）
 private enum FetchResult: Sendable {
     case success(providerID: String, snapshot: UsageSnapshot)
-    case failure(providerID: String, message: String)
+    case failure(providerID: String, message: String, kind: UsageErrorKind)
 }
 
 // MARK: - DataManager
@@ -68,6 +67,8 @@ final class DataManager: ObservableObject {
 
     /// 已发送过告警通知的 providerID 集合，用于首次超阈值才通知的去重逻辑
     private var notifiedProviders: Set<String> = []
+    private var actionRequiredNotifiedProviders: Set<String> = []
+    private var refreshGeneration = 0
 
     private let cacheKey = "aiscope_cached_snapshots"
 
@@ -122,13 +123,16 @@ final class DataManager: ObservableObject {
     func refresh(redetect: Bool = true) async {
         guard !isRefreshing else { return }
         isRefreshing = true
+        refreshGeneration += 1
+        let generation = refreshGeneration
 
         // 看门狗：20 秒后强制结束刷新状态。主流程正常完成时会 cancel 这个 task。
         // 两个 task 都跑在 MainActor 上，写 isRefreshing 无竞争。
         let watchdog = Task { @MainActor [weak self] in
             try? await Task.sleep(nanoseconds: 20_000_000_000)
-            guard !Task.isCancelled, let self else { return }
+            guard !Task.isCancelled, let self, self.refreshGeneration == generation else { return }
             dataManagerLogger.warning("刷新超时 20s，强制结束")
+            self.refreshGeneration += 1
             self.isRefreshing = false
             self.lastRefreshed = Date()
         }
@@ -136,7 +140,7 @@ final class DataManager: ObservableObject {
         defer {
             watchdog.cancel()
             // 若主流程在 watchdog 触发前完成，确保 isRefreshing 复位
-            if isRefreshing {
+            if isRefreshing, refreshGeneration == generation {
                 isRefreshing = false
                 lastRefreshed = Date()
             }
@@ -156,35 +160,50 @@ final class DataManager: ObservableObject {
                     do {
                         let snapshot = try await provider.fetchUsage()
                         return .success(providerID: provider.id, snapshot: snapshot)
+                    } catch let providerError as ProviderError {
+                        return .failure(
+                            providerID: provider.id,
+                            message: providerError.localizedDescription,
+                            kind: providerError.usageErrorKind
+                        )
                     } catch {
-                        return .failure(providerID: provider.id, message: error.localizedDescription)
+                        return .failure(
+                            providerID: provider.id,
+                            message: error.localizedDescription,
+                            kind: .general
+                        )
                     }
                 }
             }
 
             for await result in group {
+                guard refreshGeneration == generation else { continue }
                 switch result {
                 case .success(let providerID, let snapshot):
                     snapshots[providerID] = snapshot
 
-                case .failure(let providerID, let errorMessage):
+                case .failure(let providerID, let errorMessage, let errorKind):
                     let previous = snapshots[providerID]
+                    let shouldKeepPreviousData = errorKind != .actionRequired
                     snapshots[providerID] = UsageSnapshot(
                         providerID: providerID,
-                        fetchedAt: previous?.fetchedAt ?? Date(),
-                        windows: previous?.windows ?? [],
-                        pools: previous?.pools ?? [],
-                        extras: previous?.extras ?? [],
-                        planName: previous?.planName,
-                        accountEmail: previous?.accountEmail,
-                        billingCycleEnd: previous?.billingCycleEnd,
-                        errorMessage: errorMessage
+                        fetchedAt: shouldKeepPreviousData ? previous?.fetchedAt ?? Date() : Date(),
+                        windows: shouldKeepPreviousData ? previous?.windows ?? [] : [],
+                        pools: shouldKeepPreviousData ? previous?.pools ?? [] : [],
+                        extras: shouldKeepPreviousData ? previous?.extras ?? [] : [],
+                        planName: shouldKeepPreviousData ? previous?.planName : nil,
+                        accountEmail: shouldKeepPreviousData ? previous?.accountEmail : nil,
+                        billingCycleEnd: shouldKeepPreviousData ? previous?.billingCycleEnd : nil,
+                        errorMessage: errorMessage,
+                        errorKind: errorKind
                     )
                 }
             }
         }
 
+        guard refreshGeneration == generation else { return }
         saveSnapshotsToCache()
+        checkAndSendActionRequiredNotifications()
         checkAndSendNotifications()
         sendResetNotificationsIfNeeded(previousSnapshots: snapshotsBeforeRefresh)
     }
@@ -241,10 +260,27 @@ final class DataManager: ObservableObject {
         do {
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .secondsSince1970
-            snapshots = try decoder.decode([String: UsageSnapshot].self, from: data)
+            let decoded = try decoder.decode([String: UsageSnapshot].self, from: data)
+            snapshots = decoded.mapValues { sanitizeSnapshotForDisplay($0) }
         } catch {
             dataManagerLogger.error("缓存加载失败：\(error.localizedDescription)")
         }
+    }
+
+    private func sanitizeSnapshotForDisplay(_ snapshot: UsageSnapshot) -> UsageSnapshot {
+        guard snapshot.requiresUserAction else { return snapshot }
+        return UsageSnapshot(
+            providerID: snapshot.providerID,
+            fetchedAt: snapshot.fetchedAt,
+            windows: [],
+            pools: [],
+            extras: [],
+            planName: nil,
+            accountEmail: nil,
+            billingCycleEnd: nil,
+            errorMessage: snapshot.errorMessage,
+            errorKind: snapshot.errorKind
+        )
     }
 
     private func saveSnapshotsToCache() {
@@ -286,12 +322,33 @@ final class DataManager: ObservableObject {
         }
     }
 
+    private func checkAndSendActionRequiredNotifications() {
+        for provider in activeProviders {
+            guard let snapshot = snapshots[provider.id], snapshot.requiresUserAction else {
+                actionRequiredNotifiedProviders.remove(provider.id)
+                continue
+            }
+
+            guard settings.notificationsEnabled, !settings.isMuted(provider.id) else {
+                actionRequiredNotifiedProviders.remove(provider.id)
+                continue
+            }
+            guard !actionRequiredNotifiedProviders.contains(provider.id) else { continue }
+
+            actionRequiredNotifiedProviders.insert(provider.id)
+            sendActionRequiredNotification(
+                providerID: provider.id,
+                displayName: provider.displayName,
+                message: snapshot.errorMessage ?? "请重新登录后刷新"
+            )
+        }
+    }
+
     private func sendLocalNotification(providerID: String, displayName: String, remainingPercent: Int) {
         let content = UNMutableNotificationContent()
         content.title = "\(displayName) 剩余额度偏低"
         content.body  = "当前剩余额度约 \(remainingPercent)%，建议留意使用节奏"
         content.sound = .default
-        content.attachments = notificationIconAttachments()
 
         let request = UNNotificationRequest(
             identifier: "aiscope-alert-\(providerID)",
@@ -300,6 +357,22 @@ final class DataManager: ObservableObject {
         )
         UNUserNotificationCenter.current().add(request) { error in
             if let error { dataManagerLogger.error("通知发送失败：\(error.localizedDescription)") }
+        }
+    }
+
+    private func sendActionRequiredNotification(providerID: String, displayName: String, message: String) {
+        let content = UNMutableNotificationContent()
+        content.title = "\(displayName) 需要重新登录"
+        content.body = message
+        content.sound = .default
+
+        let request = UNNotificationRequest(
+            identifier: "aiscope-action-required-\(providerID)",
+            content: content,
+            trigger: nil
+        )
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error { dataManagerLogger.error("登录提醒发送失败：\(error.localizedDescription)") }
         }
     }
 
@@ -352,7 +425,6 @@ final class DataManager: ObservableObject {
         content.title = "\(displayName) 额度已重置"
         content.body  = "额度周期已进入新的重置周期"
         content.sound = .default
-        content.attachments = notificationIconAttachments()
 
         let request = UNNotificationRequest(
             identifier: "aiscope-reset-\(providerID)-\(Int(Date().timeIntervalSince1970))",
@@ -361,52 +433,6 @@ final class DataManager: ObservableObject {
         )
         UNUserNotificationCenter.current().add(request) { error in
             if let error { dataManagerLogger.error("重置通知发送失败：\(error.localizedDescription)") }
-        }
-    }
-
-    private func notificationIconAttachments() -> [UNNotificationAttachment] {
-        guard let iconURL = notificationIconURL() else {
-            return []
-        }
-
-        do {
-            let attachment = try UNNotificationAttachment(
-                identifier: "aiscope-app-icon",
-                url: iconURL,
-                options: nil
-            )
-            return [attachment]
-        } catch {
-            dataManagerLogger.error("通知图标加载失败：\(error.localizedDescription)")
-            return []
-        }
-    }
-
-    private func notificationIconURL() -> URL? {
-        let cacheDirectory = FileManager.default.urls(
-            for: .cachesDirectory,
-            in: .userDomainMask
-        ).first
-        guard let cacheDirectory else { return nil }
-
-        let iconURL = cacheDirectory.appendingPathComponent("AIScopeNotificationIcon.png")
-        if FileManager.default.fileExists(atPath: iconURL.path) {
-            return iconURL
-        }
-
-        guard let tiff = NSApp.applicationIconImage.tiffRepresentation,
-              let bitmap = NSBitmapImageRep(data: tiff),
-              let png = bitmap.representation(using: .png, properties: [:])
-        else {
-            return nil
-        }
-
-        do {
-            try png.write(to: iconURL, options: .atomic)
-            return iconURL
-        } catch {
-            dataManagerLogger.error("通知图标写入失败：\(error.localizedDescription)")
-            return nil
         }
     }
 

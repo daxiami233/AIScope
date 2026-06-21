@@ -7,18 +7,19 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		02E2A64FFD12C865E79F03E6 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BA2A3B9D84A2495A465B9AB0 /* Assets.xcassets */; };
 		02F9CD9ECBB6CCF6BC26A43A /* ClaudeCodeProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CBE2D7A4A0925A9DC19590B /* ClaudeCodeProvider.swift */; };
 		0431C40E703AA5DDE4392A03 /* DataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C009F05721F0604AB138425 /* DataManager.swift */; };
 		0A8571D8C557C7978A8D0B1B /* CursorProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A02E8FECFEEE54C35B6FCA07 /* CursorProvider.swift */; };
-		1A2B3C4D5E6F7A8B9C0D1E2F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A7B8C9D0E1F2 /* Assets.xcassets */; };
 		2C6017E2BF556D0CB5B1572F /* PopoverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04DBF782AB24715F8F549B0F /* PopoverView.swift */; };
 		32D913BB4F4ECBE0445AF3FF /* AIScopeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3216FC228262520B29557FDE /* AIScopeApp.swift */; };
 		3AE1ABFD1100461D9D46332E /* CopilotProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B34C9BEFCD4E1055D2CC0DE /* CopilotProvider.swift */; };
 		40C6D5AD156CA78C79B4BED5 /* QuotaInfoSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DB8D40D188069520DAE2129 /* QuotaInfoSection.swift */; };
 		4AF40E760034A80AA1EF4463 /* QoderProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FB7D221AAD116EFA26778FF /* QoderProvider.swift */; };
 		61716CBC472F2F2F6220D1DF /* CodexProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A04643B84F5EDFF1638CD328 /* CodexProvider.swift */; };
-		6E514B9F9B2E4C5B8A1D0F20 /* ZCodeProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E514B9E9B2E4C5B8A1D0F20 /* ZCodeProvider.swift */; };
+		64BB197CBD71AC56DFD94068 /* MimoPlatformLoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2433F20277669166B96FD3FE /* MimoPlatformLoginView.swift */; };
 		7C7EFA0218DD7BA2FCCBA641 /* ToolStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF0A7B5FDABBDE76D7FF6CDC /* ToolStatus.swift */; };
+		85C33173842901A4F7844E68 /* ZCodeProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30A295F7E72DC25494E4470D /* ZCodeProvider.swift */; };
 		A94B9E03B19D964D272A5D58 /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F2EB3CB1B9B666D2E9EB5B0 /* KeychainService.swift */; };
 		B25F769E1AF963B0712C1E82 /* MimocodeProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCE36EDA9B25F28124A9CBD0 /* MimocodeProvider.swift */; };
 		B74F5CB0B2A84AC5C1182F25 /* ToolCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3A42C13684EC9F3F5490EE6 /* ToolCardView.swift */; };
@@ -33,13 +34,13 @@
 
 /* Begin PBXFileReference section */
 		04DBF782AB24715F8F549B0F /* PopoverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopoverView.swift; sourceTree = "<group>"; };
-		A1B2C3D4E5F6A7B8C9D0E1F2 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		0FB7D221AAD116EFA26778FF /* QoderProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QoderProvider.swift; sourceTree = "<group>"; };
+		2433F20277669166B96FD3FE /* MimoPlatformLoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MimoPlatformLoginView.swift; sourceTree = "<group>"; };
 		2CBE2D7A4A0925A9DC19590B /* ClaudeCodeProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeCodeProvider.swift; sourceTree = "<group>"; };
 		2DB8D40D188069520DAE2129 /* QuotaInfoSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuotaInfoSection.swift; sourceTree = "<group>"; };
+		30A295F7E72DC25494E4470D /* ZCodeProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZCodeProvider.swift; sourceTree = "<group>"; };
 		3216FC228262520B29557FDE /* AIScopeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIScopeApp.swift; sourceTree = "<group>"; };
 		4B34C9BEFCD4E1055D2CC0DE /* CopilotProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CopilotProvider.swift; sourceTree = "<group>"; };
-		6E514B9E9B2E4C5B8A1D0F20 /* ZCodeProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZCodeProvider.swift; sourceTree = "<group>"; };
 		85743877205DDF7C7E50EB0E /* AIToolProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIToolProvider.swift; sourceTree = "<group>"; };
 		8C009F05721F0604AB138425 /* DataManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataManager.swift; sourceTree = "<group>"; };
 		8E9D48CD06861CD57AB17662 /* AIScope.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AIScope.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -51,6 +52,7 @@
 		B0263CA500A8885C5F8DA65E /* QuotaBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuotaBarView.swift; sourceTree = "<group>"; };
 		B33BBF24BFC5F464F636506B /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		B3A42C13684EC9F3F5490EE6 /* ToolCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolCardView.swift; sourceTree = "<group>"; };
+		BA2A3B9D84A2495A465B9AB0 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		BB43C47FF7D380A0F105643D /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		BF0A7B5FDABBDE76D7FF6CDC /* ToolStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolStatus.swift; sourceTree = "<group>"; };
 		C674634374D45A89F9F2DF46 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
@@ -78,7 +80,7 @@
 				A02E8FECFEEE54C35B6FCA07 /* CursorProvider.swift */,
 				CCE36EDA9B25F28124A9CBD0 /* MimocodeProvider.swift */,
 				0FB7D221AAD116EFA26778FF /* QoderProvider.swift */,
-				6E514B9E9B2E4C5B8A1D0F20 /* ZCodeProvider.swift */,
+				30A295F7E72DC25494E4470D /* ZCodeProvider.swift */,
 			);
 			path = Providers;
 			sourceTree = "<group>";
@@ -86,8 +88,8 @@
 		7027580A81B00257EA60CD8A /* AIScope */ = {
 			isa = PBXGroup;
 			children = (
+				BA2A3B9D84A2495A465B9AB0 /* Assets.xcassets */,
 				EAE31D97FB801E37AD60C88E /* App */,
-				A1B2C3D4E5F6A7B8C9D0E1F2 /* Assets.xcassets */,
 				4A94EB8A977E399135EF5A3A /* Models */,
 				508180A59D4B085D0236D1B9 /* Providers */,
 				A8E9F9F731D9407A73D33239 /* Services */,
@@ -99,6 +101,7 @@
 		72C545997B5272605591883A /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				2433F20277669166B96FD3FE /* MimoPlatformLoginView.swift */,
 				04DBF782AB24715F8F549B0F /* PopoverView.swift */,
 				B0263CA500A8885C5F8DA65E /* QuotaBarView.swift */,
 				2DB8D40D188069520DAE2129 /* QuotaInfoSection.swift */,
@@ -143,6 +146,13 @@
 			path = App;
 			sourceTree = "<group>";
 		};
+		"TEMP_DD604D7D-BBAA-43CE-B7FD-C0BFD5384AD6" /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -151,7 +161,7 @@
 			buildConfigurationList = B51A34715F6F00FB5AB07EDD /* Build configuration list for PBXNativeTarget "AIScope" */;
 			buildPhases = (
 				70729CBFBE49E4403A8FA830 /* Sources */,
-				F1E2D3C4B5A6978877665544 /* Resources */,
+				B3C02A877023E3C60EAF386C /* Resources */,
 			);
 			buildRules = (
 			);
@@ -195,11 +205,11 @@
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		F1E2D3C4B5A6978877665544 /* Resources */ = {
+		B3C02A877023E3C60EAF386C /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				1A2B3C4D5E6F7A8B9C0D1E2F /* Assets.xcassets in Resources */,
+				02E2A64FFD12C865E79F03E6 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -220,6 +230,7 @@
 				0A8571D8C557C7978A8D0B1B /* CursorProvider.swift in Sources */,
 				0431C40E703AA5DDE4392A03 /* DataManager.swift in Sources */,
 				A94B9E03B19D964D272A5D58 /* KeychainService.swift in Sources */,
+				64BB197CBD71AC56DFD94068 /* MimoPlatformLoginView.swift in Sources */,
 				B25F769E1AF963B0712C1E82 /* MimocodeProvider.swift in Sources */,
 				2C6017E2BF556D0CB5B1572F /* PopoverView.swift in Sources */,
 				4AF40E760034A80AA1EF4463 /* QoderProvider.swift in Sources */,
@@ -230,7 +241,7 @@
 				B74F5CB0B2A84AC5C1182F25 /* ToolCardView.swift in Sources */,
 				7C7EFA0218DD7BA2FCCBA641 /* ToolStatus.swift in Sources */,
 				C12D997D3F1F893BFDE43929 /* UsageData.swift in Sources */,
-				6E514B9F9B2E4C5B8A1D0F20 /* ZCodeProvider.swift in Sources */,
+				85C33173842901A4F7844E68 /* ZCodeProvider.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

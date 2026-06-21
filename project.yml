@@ -34,7 +34,7 @@ targets:
       properties:
         LSUIElement: true
         CFBundleName: AIScope
-        CFBundleShortVersionString: "0.1.1"
+        CFBundleShortVersionString: "0.1.2"
         CFBundleVersion: "1"
         CFBundleDevelopmentRegion: zh_CN
 

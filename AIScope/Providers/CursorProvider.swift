@@ -39,19 +39,12 @@ final class CursorProvider: AIToolProvider, Sendable {
             throw ProviderError.credentialMissing
         }
 
-        // 优先走新版 API，认证类错误直接暴露；其它异常再回退旧版接口。
+        // 优先走新版 API，失败后回退到 Cursor 本地 accessToken 可用的旧版接口。
+        // cursor.com/api/usage-summary 依赖网页会话 Cookie；本地库里的
+        // cursorAuth/accessToken 是 Bearer token，不能当 WorkOS Cookie 使用。
         do {
             let snapshot = try await fetchFromSummaryAPI(token: token)
             return snapshot
-        } catch let providerError as ProviderError {
-            switch providerError {
-            case .credentialExpired:
-                throw cursorSessionExpiredError()
-            case .actionRequired:
-                throw providerError
-            default:
-                return try await fetchFromLegacyAPI(token: token)
-            }
         } catch {
             return try await fetchFromLegacyAPI(token: token)
         }
@@ -73,7 +66,7 @@ final class CursorProvider: AIToolProvider, Sendable {
             throw ProviderError.networkError(URLError(.badServerResponse))
         }
         if http.statusCode == 401 || http.statusCode == 403 {
-            throw cursorSessionExpiredError()
+            throw ProviderError.apiError(statusCode: http.statusCode)
         }
         guard http.statusCode == 200 else {
             throw ProviderError.apiError(statusCode: http.statusCode)
@@ -145,7 +138,7 @@ final class CursorProvider: AIToolProvider, Sendable {
     private func fetchFromLegacyAPI(token: String) async throws -> UsageSnapshot {
         let url = URL(string: "https://api2.cursor.sh/auth/usage")!
         var request = URLRequest(url: url, timeoutInterval: 15)
-        request.setValue("WorkosCursorSessionToken=\(token)", forHTTPHeaderField: "Cookie")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
 
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse else {
@@ -158,28 +151,77 @@ final class CursorProvider: AIToolProvider, Sendable {
             throw ProviderError.parseError("旧版 API 响应格式不符合预期")
         }
 
+        let startOfMonth = (json["startOfMonth"] as? String).flatMap(parseISO8601)
+        let resetDate = startOfMonth.flatMap(nextMonthlyResetDate)
+
         let nonModelKeys: Set<String> = ["startOfMonth"]
-        var totalUsed = 0, totalLimit = 0
+        var totalUsed = 0
+        var totalLimit = 0
         for (key, value) in json {
             guard !nonModelKeys.contains(key), let obj = value as? [String: Any] else { continue }
-            totalUsed  += obj["numRequests"]     as? Int ?? 0
-            totalLimit += obj["maxRequestUsage"] as? Int ?? 0
+            totalUsed  += intValue(obj["numRequests"]) ?? 0
+            totalLimit += intValue(obj["maxRequestUsage"]) ?? 0
+        }
+
+        let pools: [UsagePool]
+        if totalLimit > 0 {
+            pools = [UsagePool(
+                label: "请求总量",
+                used: Double(totalUsed),
+                limit: Double(totalLimit),
+                unit: "请求",
+                resetsAt: resetDate
+            )]
+        } else if totalUsed == 0 {
+            pools = [UsagePool(
+                label: "套餐用量",
+                used: 0,
+                limit: 100,
+                unit: "%",
+                resetsAt: resetDate,
+                displayRemainingPercentOnly: true
+            )]
+        } else {
+            pools = [UsagePool(
+                label: "请求总量",
+                used: Double(totalUsed),
+                limit: nil,
+                unit: "请求",
+                resetsAt: resetDate
+            )]
         }
 
         return UsageSnapshot(
             providerID:      id,
             fetchedAt:       Date(),
             windows:         [],
-            pools:           [UsagePool(label: "请求总量", used: Double(totalUsed), limit: totalLimit > 0 ? Double(totalLimit) : nil, unit: "请求")],
+            pools:           pools,
             extras:          [],
-            planName:        nil,
+            planName:        formattedLocalMembershipType(),
             accountEmail:    nil,
-            billingCycleEnd: nil
+            billingCycleEnd: resetDate
         )
     }
 
     private func readLocalMembershipType() -> String? {
         try? SQLiteService.readItemTableValue(dbPath: Self.dbPath, key: Self.membershipTypeKey)
+    }
+
+    private func formattedLocalMembershipType() -> String? {
+        readLocalMembershipType().map { t in
+            String(t.prefix(1)).uppercased() + String(t.dropFirst())
+        }
+    }
+
+    private func nextMonthlyResetDate(after startDate: Date) -> Date? {
+        Calendar(identifier: .gregorian).date(byAdding: .month, value: 1, to: startDate)
+    }
+
+    private func intValue(_ value: Any?) -> Int? {
+        if let int = value as? Int { return int }
+        if let double = value as? Double { return Int(double) }
+        if let string = value as? String { return Int(string) }
+        return nil
     }
 
     private func cursorSessionExpiredError() -> ProviderError {

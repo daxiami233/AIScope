@@ -59,44 +59,6 @@ enum SQLiteService {
         return String(cString: cStr)
     }
 
-    static func readItemTableRows(dbPath: String, keyLike pattern: String) throws -> [(key: String, value: String)] {
-        let tempDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("aiscope-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempDir) }
-
-        let tempDB = tempDir.appendingPathComponent("state.vscdb")
-        try copyIfExists(dbPath,          to: tempDB.path)
-        try copyIfExists(dbPath + "-wal", to: tempDB.path + "-wal")
-        try copyIfExists(dbPath + "-shm", to: tempDB.path + "-shm")
-
-        let db = try openReadWrite(path: tempDB.path)
-        defer { sqlite3_close(db) }
-
-        var pragmaStmt: OpaquePointer?
-        if sqlite3_prepare_v2(db, "PRAGMA journal_mode=DELETE", -1, &pragmaStmt, nil) == SQLITE_OK {
-            sqlite3_step(pragmaStmt)
-            sqlite3_finalize(pragmaStmt)
-        }
-
-        let query = "SELECT key, value FROM ItemTable WHERE key LIKE ? ORDER BY key"
-        var stmt: OpaquePointer?
-        guard sqlite3_prepare_v2(db, query, -1, &stmt, nil) == SQLITE_OK else {
-            throw SQLiteError.prepareFailed(errorMessage(db))
-        }
-        defer { sqlite3_finalize(stmt) }
-
-        sqlite3_bind_text(stmt, 1, pattern, -1, unsafeBitCast(-1, to: sqlite3_destructor_type.self))
-
-        var rows: [(key: String, value: String)] = []
-        while sqlite3_step(stmt) == SQLITE_ROW {
-            guard let keyCStr = sqlite3_column_text(stmt, 0),
-                  let valueCStr = sqlite3_column_text(stmt, 1) else { continue }
-            rows.append((String(cString: keyCStr), String(cString: valueCStr)))
-        }
-        return rows
-    }
-
     /// 静默拷贝：源不存在时跳过（伴生文件可能不在），其他 IO 错误向上抛。
     private static func copyIfExists(_ src: String, to dst: String) throws {
         guard FileManager.default.fileExists(atPath: src) else { return }
@@ -104,21 +66,6 @@ enum SQLiteService {
     }
 
     // MARK: - Private helpers
-
-    private static func openReadOnly(path: String) throws -> OpaquePointer? {
-        var handle: OpaquePointer?
-        let flags = SQLITE_OPEN_READONLY | SQLITE_OPEN_FULLMUTEX
-        let result = sqlite3_open_v2(path, &handle, flags, nil)
-        defer {
-            // 仅在打开失败时关闭句柄；成功时由调用方负责关闭。
-            if result != SQLITE_OK, let handle { sqlite3_close(handle) }
-        }
-        guard result == SQLITE_OK else {
-            let msg = handle.map { String(cString: sqlite3_errmsg($0)) } ?? "unknown"
-            throw SQLiteError.openFailed(msg)
-        }
-        return handle
-    }
 
     private static func openReadWrite(path: String) throws -> OpaquePointer? {
         var handle: OpaquePointer?

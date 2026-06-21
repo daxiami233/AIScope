@@ -10,6 +10,7 @@ struct PopoverView: View {
     let openSettingsAction: () -> Void
 
     @State private var animateRefresh = false
+    @State private var isShowingMimoPlatformLogin = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -30,6 +31,11 @@ struct PopoverView: View {
         .background(.regularMaterial)
         .frame(width: 330)
         .fixedSize(horizontal: false, vertical: true)
+        .sheet(isPresented: $isShowingMimoPlatformLogin) {
+            MimoPlatformLoginView { cookie in
+                saveMimoPlatformCookie(cookie)
+            }
+        }
     }
 
     // MARK: - 标题栏
@@ -112,7 +118,12 @@ struct PopoverView: View {
                         ? .offline
                         : ToolStatus.from(utilization: snapshot.maxUtilization)
 
-                    ToolCardView(snapshot: snapshot, provider: provider, status: status)
+                    ToolCardView(
+                        snapshot: snapshot,
+                        provider: provider,
+                        status: status,
+                        reauthenticateAction: reauthenticateAction(for: provider)
+                    )
                         .background(
                             RoundedRectangle(cornerRadius: 10)
                                 .fill(Color(nsColor: .controlBackgroundColor))
@@ -208,5 +219,25 @@ struct PopoverView: View {
             planName: nil, accountEmail: nil, billingCycleEnd: nil,
             errorMessage: "尚未获取到数据"
         )
+    }
+
+    private func reauthenticateAction(for provider: any AIToolProvider) -> (() -> Void)? {
+        {
+            if provider.id == "mimocode" {
+                isShowingMimoPlatformLogin = true
+            } else {
+                openSettingsAction()
+            }
+        }
+    }
+
+    private func saveMimoPlatformCookie(_ cookie: String) {
+        do {
+            try MimocodeProvider.savePlatformCookie(cookie)
+            isShowingMimoPlatformLogin = false
+            Task { await dataManager.refresh() }
+        } catch {
+            openSettingsAction()
+        }
     }
 }

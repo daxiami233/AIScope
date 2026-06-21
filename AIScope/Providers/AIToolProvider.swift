@@ -58,6 +58,15 @@ enum ProviderError: LocalizedError {
     case parseError(String)
     case networkError(Error)
 
+    var usageErrorKind: UsageErrorKind {
+        switch self {
+        case .credentialMissing, .credentialExpired, .actionRequired:
+            return .actionRequired
+        case .notInstalled, .apiError, .parseError, .networkError:
+            return .general
+        }
+    }
+
     var errorDescription: String? {
         switch self {
         case .notInstalled:           return "工具未安装"

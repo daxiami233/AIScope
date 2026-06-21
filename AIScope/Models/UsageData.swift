@@ -2,6 +2,11 @@ import Foundation
 
 // MARK: - Usage Snapshot
 
+enum UsageErrorKind: String, Codable, Sendable {
+    case general
+    case actionRequired
+}
+
 struct UsageSnapshot: Identifiable, Codable, Sendable {
     var id: String { providerID }
     let providerID: String
@@ -20,8 +25,25 @@ struct UsageSnapshot: Identifiable, Codable, Sendable {
     var accountEmail: String?
     var billingCycleEnd: Date?
     var errorMessage: String?
+    var errorKind: UsageErrorKind? = nil
 
     var isError: Bool { errorMessage != nil }
+    var requiresUserAction: Bool {
+        if let errorKind {
+            return errorKind == .actionRequired
+        }
+        return Self.requiresUserAction(errorMessage)
+    }
+
+    static func requiresUserAction(_ errorMessage: String?) -> Bool {
+        guard let message = errorMessage?.lowercased() else { return false }
+        let keywords = [
+            "重新登录", "登录态", "登录凭证", "未找到登录凭证", "未登录",
+            "已过期", "已失效", "请先", "登录", "授权", "认证", "鉴权",
+            "cookie", "credential", "expired", "login", "unauthorized"
+        ]
+        return keywords.contains { message.contains($0) }
+    }
     var hasDisplayData: Bool {
         !windows.isEmpty || !pools.isEmpty || !extras.isEmpty
     }

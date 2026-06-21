@@ -26,7 +26,7 @@ final class MimocodeProvider: AIToolProvider, Sendable {
         }
 
         guard let cookie = Self.readPlatformCookie(), !cookie.isEmpty else {
-            return buildLocalAuthSnapshot(from: auth)
+            throw ProviderError.actionRequired("请重新登录 MiMo 平台后刷新")
         }
 
         let quota = try await fetchTokenPlanQuota(cookie: cookie)
