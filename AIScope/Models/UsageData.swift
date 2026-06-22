@@ -5,6 +5,7 @@ import Foundation
 enum UsageErrorKind: String, Codable, Sendable {
     case general
     case actionRequired
+    case quotaUnavailable
 }
 
 struct UsageSnapshot: Identifiable, Codable, Sendable {

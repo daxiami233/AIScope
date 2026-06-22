@@ -41,7 +41,10 @@ final class QoderProvider: AIToolProvider, Sendable {
                 extras.append(UsageExtra(label: "额度时间", value: relativeTimeString(from: fetchedAt)))
             }
         } else {
-            extras.append(UsageExtra(label: "额度", value: "等待 Qoder 同步"))
+            if !state.hasBrowserAuth {
+                throw ProviderError.actionRequired("Qoder 未检测到登录状态，请先在 Qoder 中登录后刷新")
+            }
+            throw ProviderError.quotaUnavailable("Qoder 暂未同步额度数据，请打开 Qoder 使用或刷新一次后再试")
         }
 
         extras.append(UsageExtra(label: "版本", value: state.variant))

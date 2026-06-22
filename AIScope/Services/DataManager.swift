@@ -184,7 +184,7 @@ final class DataManager: ObservableObject {
 
                 case .failure(let providerID, let errorMessage, let errorKind):
                     let previous = snapshots[providerID]
-                    let shouldKeepPreviousData = errorKind != .actionRequired
+                    let shouldKeepPreviousData = errorKind == .general
                     snapshots[providerID] = UsageSnapshot(
                         providerID: providerID,
                         fetchedAt: shouldKeepPreviousData ? previous?.fetchedAt ?? Date() : Date(),
@@ -268,20 +268,29 @@ final class DataManager: ObservableObject {
     }
 
     private func sanitizeSnapshotForDisplay(_ snapshot: UsageSnapshot) -> UsageSnapshot {
-        guard snapshot.requiresUserAction else { return snapshot }
+        guard snapshot.requiresUserAction || snapshot.errorKind == .quotaUnavailable else { return snapshot }
+        return snapshot.removingDisplayData()
+    }
+}
+
+private extension UsageSnapshot {
+    func removingDisplayData() -> UsageSnapshot {
         return UsageSnapshot(
-            providerID: snapshot.providerID,
-            fetchedAt: snapshot.fetchedAt,
+            providerID: providerID,
+            fetchedAt: fetchedAt,
             windows: [],
             pools: [],
             extras: [],
             planName: nil,
             accountEmail: nil,
             billingCycleEnd: nil,
-            errorMessage: snapshot.errorMessage,
-            errorKind: snapshot.errorKind
+            errorMessage: errorMessage,
+            errorKind: errorKind
         )
     }
+}
+
+extension DataManager {
 
     private func saveSnapshotsToCache() {
         do {

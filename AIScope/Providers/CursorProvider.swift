@@ -61,15 +61,12 @@ final class CursorProvider: AIToolProvider, Sendable {
 
         var request = URLRequest(url: url, timeoutInterval: 15)
         headers.forEach { request.setValue($1, forHTTPHeaderField: $0) }
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse else {
-            throw ProviderError.networkError(URLError(.badServerResponse))
-        }
+        let (data, http) = try await URLSession.shared.dataForProvider(request)
         if http.statusCode == 401 || http.statusCode == 403 {
-            throw ProviderError.apiError(statusCode: http.statusCode)
+            throw ProviderError.fromHTTP(statusCode: http.statusCode, data: data)
         }
         guard http.statusCode == 200 else {
-            throw ProviderError.apiError(statusCode: http.statusCode)
+            throw ProviderError.fromHTTP(statusCode: http.statusCode, data: data)
         }
         let summary: CursorSummaryResponse
         do {
@@ -140,12 +137,11 @@ final class CursorProvider: AIToolProvider, Sendable {
         var request = URLRequest(url: url, timeoutInterval: 15)
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse else {
-            throw ProviderError.networkError(URLError(.badServerResponse))
-        }
+        let (data, http) = try await URLSession.shared.dataForProvider(request)
         if http.statusCode == 401 || http.statusCode == 403 { throw cursorSessionExpiredError() }
-        guard http.statusCode == 200 else { throw ProviderError.apiError(statusCode: http.statusCode) }
+        guard http.statusCode == 200 else {
+            throw ProviderError.fromHTTP(statusCode: http.statusCode, data: data)
+        }
 
         guard let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else {
             throw ProviderError.parseError("旧版 API 响应格式不符合预期")

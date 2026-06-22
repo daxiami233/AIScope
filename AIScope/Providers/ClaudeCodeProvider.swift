@@ -41,7 +41,7 @@ final class ClaudeCodeProvider: AIToolProvider, Sendable {
         let buckets = try await bucketsTask
         let overage = try? await overageTask
 
-        return buildSnapshot(buckets: buckets, overage: overage)
+        return try buildSnapshot(buckets: buckets, overage: overage)
     }
 
     // MARK: - 凭证读取
@@ -90,7 +90,7 @@ final class ClaudeCodeProvider: AIToolProvider, Sendable {
 
     // MARK: - 构造 UsageSnapshot
 
-    private func buildSnapshot(buckets: [String: BucketInfo], overage: OverageInfo?) -> UsageSnapshot {
+    private func buildSnapshot(buckets: [String: BucketInfo], overage: OverageInfo?) throws -> UsageSnapshot {
         var windows: [UsageWindow] = []
 
         // 5h 短周期资源预算
@@ -140,6 +140,10 @@ final class ClaudeCodeProvider: AIToolProvider, Sendable {
         }
         // 固定说明：提醒用户多端共享同一套餐额度
         extras.append(UsageExtra(label: "共享额度", value: "claude.ai / Desktop / Code 共用"))
+
+        guard !windows.isEmpty else {
+            throw ProviderError.quotaUnavailable("Claude 当前未返回可显示的用量窗口，请确认账号套餐或稍后刷新")
+        }
 
         return UsageSnapshot(
             providerID: id, fetchedAt: Date(),

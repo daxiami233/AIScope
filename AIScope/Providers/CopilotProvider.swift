@@ -155,12 +155,9 @@ final class CopilotProvider: AIToolProvider, Sendable {
         components.queryItems = form.map { URLQueryItem(name: $0.key, value: $0.value) }
         request.httpBody = components.percentEncodedQuery?.data(using: .utf8)
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse else {
-            throw ProviderError.networkError(URLError(.badServerResponse))
-        }
+        let (data, http) = try await URLSession.shared.dataForProvider(request)
         guard (200..<300).contains(http.statusCode) else {
-            throw ProviderError.apiError(statusCode: http.statusCode)
+            throw ProviderError.fromHTTP(statusCode: http.statusCode, data: data)
         }
 
         do {
@@ -179,7 +176,7 @@ final class CopilotProvider: AIToolProvider, Sendable {
             "User-Agent":           "AIScope/1.0"
         ]
         let response: CopilotUserResponse = try await URLSession.shared.fetchJSON(url, headers: headers)
-        return buildSnapshot(from: response)
+        return try buildSnapshot(from: response)
     }
 
     static func lookupUsername(token: String) async throws -> String {
@@ -197,7 +194,7 @@ final class CopilotProvider: AIToolProvider, Sendable {
 
     // MARK: - Snapshot 构建
 
-    private func buildSnapshot(from response: CopilotUserResponse) -> UsageSnapshot {
+    private func buildSnapshot(from response: CopilotUserResponse) throws -> UsageSnapshot {
         var pools:  [UsagePool]  = []
         var extras: [UsageExtra]  = []
         let billingCycleEnd = extractBillingCycleEnd(from: response)
@@ -242,6 +239,10 @@ final class CopilotProvider: AIToolProvider, Sendable {
 
         if let end = billingCycleEnd {
             extras.append(UsageExtra(label: "账单周期", value: formatMonthDay(end) + " 重置"))
+        }
+
+        guard !pools.isEmpty else {
+            throw ProviderError.quotaUnavailable("GitHub Copilot 当前未返回可显示的 AI Credits 额度，请确认账号套餐或稍后刷新")
         }
 
         return UsageSnapshot(

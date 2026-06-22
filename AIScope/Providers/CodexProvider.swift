@@ -40,7 +40,7 @@ final class CodexProvider: AIToolProvider, Sendable {
             "User-Agent":    "AIScope/1.0"
         ]
         let response: CodexUsageResponse = try await URLSession.shared.fetchJSON(url, headers: headers)
-        return buildSnapshot(from: response)
+        return try buildSnapshot(from: response)
     }
 
     // MARK: - 凭证读取
@@ -66,7 +66,7 @@ final class CodexProvider: AIToolProvider, Sendable {
 
     // MARK: - Snapshot 构建
 
-    private func buildSnapshot(from response: CodexUsageResponse) -> UsageSnapshot {
+    private func buildSnapshot(from response: CodexUsageResponse) throws -> UsageSnapshot {
         var windows: [UsageWindow] = []
         var extras:  [UsageExtra]  = []
 
@@ -90,6 +90,10 @@ final class CodexProvider: AIToolProvider, Sendable {
                 label: "Credits 余额",
                 value: String(format: "%.2f 积分", balance)
             ))
+        }
+
+        guard !windows.isEmpty || !extras.isEmpty else {
+            throw ProviderError.quotaUnavailable("Codex 当前未返回可显示的用量窗口，请确认账号套餐或稍后刷新")
         }
 
         return UsageSnapshot(

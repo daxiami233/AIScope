@@ -13,7 +13,7 @@ final class ZCodeProvider: AIToolProvider, Sendable {
     let dashboardURL = URL(string: "https://zcode.z.ai")!
 
     private static let configPath = NSString(string: "~/.zcode/v2/config.json").expandingTildeInPath
-    private static let apiURL = URL(string: "https://zcode.z.ai/api/v1/zcode-plan/billing/balance")!
+    private static let apiURL = URL(string: "https://zcode.z.ai/api/v1/zcode-plan/billing/balance?app_version=3.1.2")!
 
     func detect() async -> Bool {
         FileManager.default.fileExists(atPath: Self.configPath)
@@ -25,6 +25,9 @@ final class ZCodeProvider: AIToolProvider, Sendable {
         }
 
         let response = try await fetchBalance(apiKey: apiKey)
+        guard !response.data.balances.isEmpty else {
+            throw ProviderError.quotaUnavailable("ZCode 当前没有有效套餐或可显示额度，Start Plan 体验额度可能已到期")
+        }
 
         let pools = response.data.balances.map { item in
             UsagePool(
@@ -86,20 +89,31 @@ final class ZCodeProvider: AIToolProvider, Sendable {
         var request = URLRequest(url: Self.apiURL, timeoutInterval: 15)
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse else {
-            throw ProviderError.networkError(URLError(.badServerResponse))
-        }
+        let (data, http) = try await URLSession.shared.dataForProvider(request)
 
         if http.statusCode == 401 || http.statusCode == 403 {
             throw ProviderError.actionRequired("ZCode API Key 已过期，请重新登录 ZCode")
         }
         guard http.statusCode == 200 else {
-            throw ProviderError.apiError(statusCode: http.statusCode)
+            throw ProviderError.fromHTTP(
+                statusCode: http.statusCode,
+                data: data,
+                authMessage: "ZCode API Key 已过期，请重新登录 ZCode"
+            )
         }
 
         do {
-            return try JSONDecoder().decode(ZCodeAPIResponse.self, from: data)
+            let decoded = try JSONDecoder().decode(ZCodeAPIResponse.self, from: data)
+            if decoded.code != 0 {
+                throw ProviderError.fromServiceError(
+                    code: decoded.code,
+                    message: decoded.msg.isEmpty ? "ZCode 接口返回业务错误 code=\(decoded.code)" : decoded.msg,
+                    authMessage: "ZCode API Key 已过期，请重新登录 ZCode"
+                )
+            }
+            return decoded
+        } catch let providerError as ProviderError {
+            throw providerError
         } catch {
             throw ProviderError.parseError(error.localizedDescription)
         }

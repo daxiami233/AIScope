@@ -133,26 +133,28 @@ final class MimocodeProvider: AIToolProvider, Sendable {
         request.setValue(Locale.preferredLanguages.first ?? "zh-CN", forHTTPHeaderField: "Accept-Language")
         request.setValue(TimeZone.current.identifier, forHTTPHeaderField: "x-timeZone")
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse else {
-            throw ProviderError.networkError(URLError(.badServerResponse))
-        }
+        let (data, http) = try await URLSession.shared.dataForProvider(request)
         if http.statusCode == 401 || http.statusCode == 403 {
             throw ProviderError.actionRequired("MiMo 平台登录态已失效，请重新登录 MiMo")
         }
         guard http.statusCode == 200 else {
-            throw ProviderError.apiError(statusCode: http.statusCode)
+            throw ProviderError.fromHTTP(
+                statusCode: http.statusCode,
+                data: data,
+                authMessage: "MiMo 平台登录态已失效，请重新登录 MiMo"
+            )
         }
 
         guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw ProviderError.parseError("MiMo 控制台响应不是 JSON")
         }
         if let code = root["code"] as? Int, code != 0 && code != 200 {
-            if code == 401 || code == 403 {
-                throw ProviderError.actionRequired("MiMo 平台登录态已失效，请重新登录 MiMo")
-            }
             let message = root["message"] as? String ?? "code=\(code)"
-            throw ProviderError.parseError(message)
+            throw ProviderError.fromServiceError(
+                code: code,
+                message: message,
+                authMessage: "MiMo 平台登录态已失效，请重新登录 MiMo"
+            )
         }
         return root["data"] ?? root
     }
