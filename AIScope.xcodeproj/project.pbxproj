@@ -18,6 +18,7 @@
 		4AF40E760034A80AA1EF4463 /* QoderProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FB7D221AAD116EFA26778FF /* QoderProvider.swift */; };
 		61716CBC472F2F2F6220D1DF /* CodexProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A04643B84F5EDFF1638CD328 /* CodexProvider.swift */; };
 		64BB197CBD71AC56DFD94068 /* MimoPlatformLoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2433F20277669166B96FD3FE /* MimoPlatformLoginView.swift */; };
+		68A4C6F9FEC64D2AA1B71437 /* OpenCodeGoLoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D5E84D1AF004C66B790CC61 /* OpenCodeGoLoginView.swift */; };
 		7C7EFA0218DD7BA2FCCBA641 /* ToolStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF0A7B5FDABBDE76D7FF6CDC /* ToolStatus.swift */; };
 		85C33173842901A4F7844E68 /* ZCodeProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30A295F7E72DC25494E4470D /* ZCodeProvider.swift */; };
 		A94B9E03B19D964D272A5D58 /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F2EB3CB1B9B666D2E9EB5B0 /* KeychainService.swift */; };
@@ -46,6 +47,7 @@
 		8C009F05721F0604AB138425 /* DataManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataManager.swift; sourceTree = "<group>"; };
 		8E9D48CD06861CD57AB17662 /* AIScope.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AIScope.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		91421E545B4A6C9620350299 /* OpenCodeGoProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenCodeGoProvider.swift; sourceTree = "<group>"; };
+		9D5E84D1AF004C66B790CC61 /* OpenCodeGoLoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenCodeGoLoginView.swift; sourceTree = "<group>"; };
 		92B1B4E4387166956CF2D528 /* UsageData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageData.swift; sourceTree = "<group>"; };
 		9F2EB3CB1B9B666D2E9EB5B0 /* KeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainService.swift; sourceTree = "<group>"; };
 		A02E8FECFEEE54C35B6FCA07 /* CursorProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CursorProvider.swift; sourceTree = "<group>"; };
@@ -105,6 +107,7 @@
 			isa = PBXGroup;
 			children = (
 				2433F20277669166B96FD3FE /* MimoPlatformLoginView.swift */,
+				9D5E84D1AF004C66B790CC61 /* OpenCodeGoLoginView.swift */,
 				04DBF782AB24715F8F549B0F /* PopoverView.swift */,
 				B0263CA500A8885C5F8DA65E /* QuotaBarView.swift */,
 				2DB8D40D188069520DAE2129 /* QuotaInfoSection.swift */,
@@ -234,6 +237,7 @@
 				0431C40E703AA5DDE4392A03 /* DataManager.swift in Sources */,
 				A94B9E03B19D964D272A5D58 /* KeychainService.swift in Sources */,
 				64BB197CBD71AC56DFD94068 /* MimoPlatformLoginView.swift in Sources */,
+				68A4C6F9FEC64D2AA1B71437 /* OpenCodeGoLoginView.swift in Sources */,
 				B25F769E1AF963B0712C1E82 /* MimocodeProvider.swift in Sources */,
 				AD603805AA58DE49A808F88B /* OpenCodeGoProvider.swift in Sources */,
 				2C6017E2BF556D0CB5B1572F /* PopoverView.swift in Sources */,

@@ -426,6 +426,8 @@ struct SettingsView: View {
 
             if provider.id == "github-copilot" {
                 copilotActionButton
+            } else if provider.id == "opencode-go" {
+                openCodeGoActionButton
             } else if provider.id == "mimocode" {
                 mimoActionButton
             } else {
@@ -460,7 +462,7 @@ struct SettingsView: View {
                 Button {
                     startCopilotLogin()
                 } label: {
-                    Text("切换账号")
+                    Text("重新登录")
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
@@ -468,7 +470,7 @@ struct SettingsView: View {
                 Button {
                     startCopilotLogin()
                 } label: {
-                    Label(isCopilotLoggingIn ? "等待 GitHub" : "登录", systemImage: "person.crop.circle.badge.checkmark")
+                    Label(isCopilotLoggingIn ? "登录中..." : "登录", systemImage: "person.crop.circle.badge.checkmark")
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.small)
@@ -497,13 +499,43 @@ struct SettingsView: View {
                 Button {
                     showMimoPlatformLogin()
                 } label: {
-                    Text("切换账号")
+                    Text("重新登录")
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
             } else {
                 Button {
                     showMimoPlatformLogin()
+                } label: {
+                    Label("登录", systemImage: "globe")
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+            }
+        }
+    }
+
+    private var openCodeGoActionButton: some View {
+        let hasOfficialSession = OpenCodeGoProvider.hasOfficialSession
+        return HStack(spacing: 8) {
+            if hasOfficialSession {
+                Text("已登录")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.green)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(Color.green.opacity(0.12))
+                    )
+                Button("重新登录") {
+                    showOpenCodeGoLogin()
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+            } else {
+                Button {
+                    showOpenCodeGoLogin()
                 } label: {
                     Label("登录", systemImage: "globe")
                 }
@@ -541,9 +573,12 @@ struct SettingsView: View {
         case "opencode-go":
             let authPath = home.appendingPathComponent(".local/share/opencode/auth.json").path
             let databasePath = home.appendingPathComponent(".local/share/opencode/opencode.db").path
+            if OpenCodeGoProvider.hasOfficialSession {
+                return ("OpenCode 官网 Cookie (Keychain)", "已登录")
+            }
             if OpenCodeGoProvider.hasLocalCredentials {
                 let history = fm.fileExists(atPath: databasePath) ? "已检测到本地记录" : "等待首次使用记录"
-                return ("OpenCode auth.json + opencode.db", history == "已检测到本地记录" ? "已登录" : history)
+                return ("OpenCode auth.json + opencode.db", history)
             }
             return ("OpenCode auth.json", fm.fileExists(atPath: authPath) ? "未配置 Go" : "未登录")
         case "mimocode":
@@ -757,6 +792,19 @@ struct SettingsView: View {
     private func showMimoPlatformLogin() {
         MimoPlatformLoginWindowController.shared.show { cookie in
             saveMimoPlatformCookie(cookie)
+        }
+    }
+
+    private func showOpenCodeGoLogin() {
+        OpenCodeGoLoginWindowController.shared.show { cookie in
+            do {
+                try OpenCodeGoProvider.saveOfficialCookie(cookie)
+                configRefreshID += 1
+                Task { await dataManager.refresh() }
+            } catch {
+                // 设置页状态会在下次刷新时回到未登录；避免在登录窗口中吞掉失败。
+                print("保存 OpenCode Go 登录会话失败：\(error.localizedDescription)")
+            }
         }
     }
 

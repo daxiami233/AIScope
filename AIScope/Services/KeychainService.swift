@@ -183,6 +183,8 @@ enum KeychainService {
 
 struct AIScopeCredentials: Codable, Sendable {
     var mimoPlatformCookie: String?
+    /// OpenCode 官网登录会话。仅用于读取 Go 控制台中的实时用量。
+    var openCodeGoCookie: String?
     var copilotOAuthToken: String?
     var copilotUsername: String?
 }
