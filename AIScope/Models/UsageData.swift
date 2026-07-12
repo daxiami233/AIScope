@@ -88,8 +88,15 @@ struct UsageWindow: Identifiable, Codable, Sendable {
         let diff = date.timeIntervalSinceNow
         guard diff > 0 else { return "即将重置" }
         if diff < 3600      { return "\(Int(diff / 60)) 分钟后重置" }
-        else if diff < 86400 { return "\(Int(diff / 3600)) 小时后重置" }
-        else                 { return "\(Int(diff / 86400)) 天后重置" }
+        else if diff < 86400 {
+            let hours = Int(diff / 3600)
+            let minutes = Int(diff.truncatingRemainder(dividingBy: 3600) / 60)
+            return minutes > 0 ? "\(hours) 小时 \(minutes) 分钟后重置" : "\(hours) 小时后重置"
+        } else {
+            let days = Int(diff / 86400)
+            let hours = Int(diff.truncatingRemainder(dividingBy: 86400) / 3600)
+            return hours > 0 ? "\(days) 天 \(hours) 小时后重置" : "\(days) 天后重置"
+        }
     }
 }
 
@@ -118,8 +125,15 @@ struct UsagePool: Identifiable, Codable, Sendable {
         let diff = date.timeIntervalSinceNow
         guard diff > 0 else { return "即将重置" }
         if diff < 3600      { return "\(Int(diff / 60))分钟后重置" }
-        else if diff < 86400 { return "\(Int(diff / 3600))小时后重置" }
-        else                 { return "\(Int(diff / 86400))天后重置" }
+        else if diff < 86400 {
+            let hours = Int(diff / 3600)
+            let minutes = Int(diff.truncatingRemainder(dividingBy: 3600) / 60)
+            return minutes > 0 ? "\(hours)小时\(minutes)分钟后重置" : "\(hours)小时后重置"
+        } else {
+            let days = Int(diff / 86400)
+            let hours = Int(diff.truncatingRemainder(dividingBy: 86400) / 3600)
+            return hours > 0 ? "\(days)天\(hours)小时后重置" : "\(days)天后重置"
+        }
     }
 
     var utilization: Double {

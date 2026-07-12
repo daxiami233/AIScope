@@ -13,7 +13,6 @@ struct SettingsView: View {
     @State private var draggedProviderID: String?
 
     @State private var mimoCookieMessage: String?
-    @State private var isShowingMimoPlatformLogin = false
     @State private var copilotLoginMessage: String?
     @State private var copilotLoginCode: String?
     @State private var isCopilotLoggingIn = false
@@ -56,12 +55,6 @@ struct SettingsView: View {
         .background(.regularMaterial)
         .onAppear {
             loadMimoPlatformCookie()
-        }
-        .sheet(isPresented: $isShowingMimoPlatformLogin) {
-            MimoPlatformLoginView { cookie in
-                saveMimoPlatformCookie(cookie)
-                isShowingMimoPlatformLogin = false
-            }
         }
     }
 
@@ -502,7 +495,7 @@ struct SettingsView: View {
                             .fill(Color.green.opacity(0.12))
                     )
                 Button {
-                    isShowingMimoPlatformLogin = true
+                    showMimoPlatformLogin()
                 } label: {
                     Text("切换账号")
                 }
@@ -510,7 +503,7 @@ struct SettingsView: View {
                 .controlSize(.small)
             } else {
                 Button {
-                    isShowingMimoPlatformLogin = true
+                    showMimoPlatformLogin()
                 } label: {
                     Label("登录", systemImage: "globe")
                 }
@@ -526,7 +519,7 @@ struct SettingsView: View {
         switch id {
         case "cursor":
             let path = home.appendingPathComponent("Library/Application Support/Cursor/User/globalStorage/state.vscdb").path
-            return ("本地 SQLite (Cursor)", fm.fileExists(atPath: path) ? "检测到配置文件" : "未检测到配置文件")
+            return ("本地 SQLite (Cursor)", fm.fileExists(atPath: path) ? "已检测到配置" : "未检测到配置")
         case "claude-code":
             let hasKeychain = !KeychainService.readAllGenericPasswords(
                 service: "Claude Code-credentials",
@@ -542,9 +535,17 @@ struct SettingsView: View {
                 service: "Codex Auth",
                 allowUserInteraction: false
             )
-            if hasFile { return ("~/.codex/auth.json", "检测到配置文件") }
+            if hasFile { return ("~/.codex/auth.json", "已登录") }
             if hasKeychain != nil { return ("macOS Keychain", "已登录") }
             return ("Keychain 或 auth.json", "未登录")
+        case "opencode-go":
+            let authPath = home.appendingPathComponent(".local/share/opencode/auth.json").path
+            let databasePath = home.appendingPathComponent(".local/share/opencode/opencode.db").path
+            if OpenCodeGoProvider.hasLocalCredentials {
+                let history = fm.fileExists(atPath: databasePath) ? "已检测到本地记录" : "等待首次使用记录"
+                return ("OpenCode auth.json + opencode.db", history == "已检测到本地记录" ? "已登录" : history)
+            }
+            return ("OpenCode auth.json", fm.fileExists(atPath: authPath) ? "未配置 Go" : "未登录")
         case "mimocode":
             let authPath = home.appendingPathComponent(".local/share/mimocode/auth.json").path
             let hasAuth = fm.fileExists(atPath: authPath)
@@ -555,13 +556,13 @@ struct SettingsView: View {
         case "qoder":
             let cnExists = fm.fileExists(atPath: NSString(string: "~/.qoder-cn").expandingTildeInPath)
             let cliExists = fm.fileExists(atPath: NSString(string: "~/.qoder-cli").expandingTildeInPath)
-            if cnExists { return ("本地日志 (~/.qoder-cn)", "检测到本地日志") }
-            if cliExists { return ("本地日志 (~/.qoder-cli)", "检测到本地日志") }
-            return ("本地日志", "未检测到本地日志")
+            if cnExists { return ("本地日志 (~/.qoder-cn)", "已检测到记录") }
+            if cliExists { return ("本地日志 (~/.qoder-cli)", "已检测到记录") }
+            return ("本地日志", "未检测到记录")
         case "zcode-glm":
             let configPath = home.appendingPathComponent(".zcode/v2/config.json").path
-            if fm.fileExists(atPath: configPath) { return ("ZCode 配置 (~/.zcode)", "检测到配置文件") }
-            return ("ZCode 配置", "未检测到配置文件")
+            if fm.fileExists(atPath: configPath) { return ("ZCode 配置 (~/.zcode)", "已检测到配置") }
+            return ("ZCode 配置", "未检测到配置")
         default:
             return ("未知", "未知")
         }
@@ -674,6 +675,7 @@ struct SettingsView: View {
         case "claude-code":     return .init(assetName: "claude-code", fallbackIcon: "terminal", color: .orange)
         case "github-copilot":  return .init(assetName: "github-copilot", fallbackIcon: "chevron.left.forwardslash.chevron.right", color: .purple)
         case "openai-codex":    return .init(assetName: "openai-codex", fallbackIcon: "sparkles", color: .teal)
+        case "opencode-go":     return .init(assetName: "opencode-go", fallbackIcon: "terminal.fill", color: .cyan)
         case "mimocode":        return .init(assetName: "mimocode", fallbackIcon: "cube.fill", color: .pink)
         case "qoder":           return .init(assetName: "qoder", fallbackIcon: "q.square.fill", color: .indigo)
         case "zcode-glm":       return .init(assetName: "zai", fallbackIcon: "z.square.fill", color: .green)
@@ -749,6 +751,12 @@ struct SettingsView: View {
             Task { await dataManager.refresh() }
         } catch {
             mimoCookieMessage = error.localizedDescription
+        }
+    }
+
+    private func showMimoPlatformLogin() {
+        MimoPlatformLoginWindowController.shared.show { cookie in
+            saveMimoPlatformCookie(cookie)
         }
     }
 

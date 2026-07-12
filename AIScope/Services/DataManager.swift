@@ -81,6 +81,7 @@ final class DataManager: ObservableObject {
             ClaudeCodeProvider(),
             CopilotProvider(),
             CodexProvider(),
+            OpenCodeGoProvider(),
             MimocodeProvider(),
             QoderProvider(),
             ZCodeProvider()

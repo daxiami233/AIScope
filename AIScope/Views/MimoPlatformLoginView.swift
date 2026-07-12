@@ -4,12 +4,8 @@ import WebKit
 
 // MARK: - MiMo Platform Login
 
-private var integrationLoginWindowSize: CGSize {
-    let visible = NSScreen.main?.visibleFrame.size ?? CGSize(width: 1440, height: 900)
-    return CGSize(
-        width: min(max(visible.width * 0.96, 980), visible.width),
-        height: min(max(visible.height * 0.92, 720), visible.height)
-    )
+private var integrationLoginWindowFrame: NSRect {
+    NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
 }
 
 struct MimoPlatformLoginView: View {
@@ -17,6 +13,7 @@ struct MimoPlatformLoginView: View {
     @State private var status = "登录后会自动保存 Cookie"
 
     let onCookie: (String) -> Void
+    var onClose: (() -> Void)? = nil
 
     var body: some View {
         VStack(spacing: 0) {
@@ -32,7 +29,11 @@ struct MimoPlatformLoginView: View {
                 Spacer()
 
                 Button("关闭") {
-                    dismiss()
+                    if let onClose {
+                        onClose()
+                    } else {
+                        dismiss()
+                    }
                 }
             }
             .padding(14)
@@ -44,7 +45,63 @@ struct MimoPlatformLoginView: View {
                 onStatus: { status = $0 }
             )
         }
-        .frame(width: integrationLoginWindowSize.width, height: integrationLoginWindowSize.height)
+        .frame(minWidth: 760, maxWidth: .infinity, minHeight: 560, maxHeight: .infinity)
+    }
+}
+
+@MainActor
+final class MimoPlatformLoginWindowController: NSObject, NSWindowDelegate {
+    static let shared = MimoPlatformLoginWindowController()
+
+    private var window: NSWindow?
+    private var onCookie: ((String) -> Void)?
+
+    func show(onCookie: @escaping (String) -> Void) {
+        self.onCookie = onCookie
+
+        if let window {
+            NSApp.activate(ignoringOtherApps: true)
+            window.setFrame(integrationLoginWindowFrame, display: true)
+            window.makeKeyAndOrderFront(nil)
+            window.orderFrontRegardless()
+            return
+        }
+
+        let window = NSWindow(
+            contentRect: integrationLoginWindowFrame,
+            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "MiMo 平台登录"
+        window.minSize = NSSize(width: 760, height: 560)
+        window.isReleasedWhenClosed = false
+        window.delegate = self
+        window.contentViewController = NSHostingController(
+            rootView: MimoPlatformLoginView(
+                onCookie: { [weak self] cookie in
+                    self?.onCookie?(cookie)
+                    self?.close()
+                },
+                onClose: { [weak self] in
+                    self?.close()
+                }
+            )
+        )
+        self.window = window
+        window.setFrame(integrationLoginWindowFrame, display: true)
+        NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
+        window.orderFrontRegardless()
+    }
+
+    func close() {
+        window?.close()
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        window = nil
+        onCookie = nil
     }
 }
 

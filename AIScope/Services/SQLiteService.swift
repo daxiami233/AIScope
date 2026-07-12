@@ -11,6 +11,11 @@ enum SQLiteService {
         case copyFailed(String)
     }
 
+    struct OpenCodeUsageRow: Sendable {
+        let createdAt: Date
+        let cost: Double
+    }
+
     // MARK: - Public API
 
     /// Reads a single string value from `ItemTable` by key.
@@ -57,6 +62,57 @@ enum SQLiteService {
             throw SQLiteError.notFound
         }
         return String(cString: cStr)
+    }
+
+    /// 读取 OpenCode 本地会话数据库中已完成的 OpenCode Go 请求成本。
+    /// 数据库可能正被 OpenCode 写入，所以使用包含 WAL 文件的临时副本查询。
+    static func readOpenCodeGoUsageRows(dbPath: String) throws -> [OpenCodeUsageRow] {
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("aiscope-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let tempDB = tempDir.appendingPathComponent("opencode.db")
+        try copyIfExists(dbPath, to: tempDB.path)
+        try copyIfExists(dbPath + "-wal", to: tempDB.path + "-wal")
+        try copyIfExists(dbPath + "-shm", to: tempDB.path + "-shm")
+
+        let db = try openReadWrite(path: tempDB.path)
+        defer { sqlite3_close(db) }
+
+        var pragmaStmt: OpaquePointer?
+        if sqlite3_prepare_v2(db, "PRAGMA journal_mode=DELETE", -1, &pragmaStmt, nil) == SQLITE_OK {
+            sqlite3_step(pragmaStmt)
+            sqlite3_finalize(pragmaStmt)
+        }
+
+        let query = """
+        SELECT
+            CAST(COALESCE(json_extract(data, '$.time.created'), time_created) AS REAL) AS created_ms,
+            CAST(json_extract(data, '$.cost') AS REAL) AS cost
+        FROM message
+        WHERE json_valid(data)
+          AND json_extract(data, '$.providerID') = 'opencode-go'
+          AND json_extract(data, '$.role') = 'assistant'
+          AND json_type(data, '$.cost') IN ('integer', 'real')
+        """
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, query, -1, &stmt, nil) == SQLITE_OK else {
+            throw SQLiteError.prepareFailed(errorMessage(db))
+        }
+        defer { sqlite3_finalize(stmt) }
+
+        var rows: [OpenCodeUsageRow] = []
+        while sqlite3_step(stmt) == SQLITE_ROW {
+            let milliseconds = sqlite3_column_double(stmt, 0)
+            let cost = sqlite3_column_double(stmt, 1)
+            guard milliseconds > 0, cost >= 0 else { continue }
+            rows.append(OpenCodeUsageRow(
+                createdAt: Date(timeIntervalSince1970: milliseconds / 1_000),
+                cost: cost
+            ))
+        }
+        return rows
     }
 
     /// 静默拷贝：源不存在时跳过（伴生文件可能不在），其他 IO 错误向上抛。

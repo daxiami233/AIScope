@@ -10,7 +10,6 @@ struct PopoverView: View {
     let openSettingsAction: () -> Void
 
     @State private var animateRefresh = false
-    @State private var isShowingMimoPlatformLogin = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -31,11 +30,6 @@ struct PopoverView: View {
         .background(.regularMaterial)
         .frame(width: 330)
         .fixedSize(horizontal: false, vertical: true)
-        .sheet(isPresented: $isShowingMimoPlatformLogin) {
-            MimoPlatformLoginView { cookie in
-                saveMimoPlatformCookie(cookie)
-            }
-        }
     }
 
     // MARK: - 标题栏
@@ -224,7 +218,7 @@ struct PopoverView: View {
     private func reauthenticateAction(for provider: any AIToolProvider) -> (() -> Void)? {
         {
             if provider.id == "mimocode" {
-                isShowingMimoPlatformLogin = true
+                showMimoPlatformLogin()
             } else {
                 openSettingsAction()
             }
@@ -234,10 +228,15 @@ struct PopoverView: View {
     private func saveMimoPlatformCookie(_ cookie: String) {
         do {
             try MimocodeProvider.savePlatformCookie(cookie)
-            isShowingMimoPlatformLogin = false
             Task { await dataManager.refresh() }
         } catch {
             openSettingsAction()
+        }
+    }
+
+    private func showMimoPlatformLogin() {
+        MimoPlatformLoginWindowController.shared.show { cookie in
+            saveMimoPlatformCookie(cookie)
         }
     }
 }

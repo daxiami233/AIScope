@@ -30,6 +30,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     // MARK: - NSApplicationDelegate
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        if terminateDuplicateInstanceIfNeeded() { return }
+
         guard let dm = dataManager else { return }
 
         setupStatusItem()
@@ -42,6 +44,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             await dm.refresh(redetect: false)
         }
         dm.startAutoRefresh()
+    }
+
+    private func terminateDuplicateInstanceIfNeeded() -> Bool {
+        guard let bundleIdentifier = Bundle.main.bundleIdentifier else { return false }
+
+        let currentPID = ProcessInfo.processInfo.processIdentifier
+        let currentBundlePath = Bundle.main.bundleURL.standardizedFileURL.path
+        let currentIsInstalledApp = currentBundlePath == "/Applications/AIScope.app"
+
+        let duplicates = NSWorkspace.shared.runningApplications.filter {
+            $0.bundleIdentifier == bundleIdentifier && $0.processIdentifier != currentPID
+        }
+        guard !duplicates.isEmpty else { return false }
+
+        if currentIsInstalledApp {
+            for duplicate in duplicates {
+                duplicate.terminate()
+            }
+            appDelegateLogger.info("发现重复 AIScope 实例，已保留 /Applications 版本并请求退出其他实例")
+            return false
+        }
+
+        if let installedApp = duplicates.first(where: {
+            $0.bundleURL?.standardizedFileURL.path == "/Applications/AIScope.app"
+        }) {
+            installedApp.activate()
+            appDelegateLogger.info("检测到 /Applications 中的 AIScope 已在运行，当前副本退出")
+            NSApp.terminate(nil)
+            return true
+        }
+
+        duplicates.first?.activate()
+        appDelegateLogger.info("检测到 AIScope 已在运行，当前副本退出")
+        NSApp.terminate(nil)
+        return true
     }
 
     // MARK: - StatusItem 配置
