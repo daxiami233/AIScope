@@ -571,16 +571,10 @@ struct SettingsView: View {
             if hasKeychain != nil { return ("macOS Keychain", "已登录") }
             return ("Keychain 或 auth.json", "未登录")
         case "opencode-go":
-            let authPath = home.appendingPathComponent(".local/share/opencode/auth.json").path
-            let databasePath = home.appendingPathComponent(".local/share/opencode/opencode.db").path
             if OpenCodeGoProvider.hasOfficialSession {
                 return ("OpenCode 官网 Cookie (Keychain)", "已登录")
             }
-            if OpenCodeGoProvider.hasLocalCredentials {
-                let history = fm.fileExists(atPath: databasePath) ? "已检测到本地记录" : "等待首次使用记录"
-                return ("OpenCode auth.json + opencode.db", history)
-            }
-            return ("OpenCode auth.json", fm.fileExists(atPath: authPath) ? "未配置 Go" : "未登录")
+            return ("OpenCode 官网 Cookie", "未登录")
         case "mimocode":
             let authPath = home.appendingPathComponent(".local/share/mimocode/auth.json").path
             let hasAuth = fm.fileExists(atPath: authPath)

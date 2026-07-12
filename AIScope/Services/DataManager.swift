@@ -262,13 +262,25 @@ final class DataManager: ObservableObject {
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .secondsSince1970
             let decoded = try decoder.decode([String: UsageSnapshot].self, from: data)
+            let containsLegacyOpenCodeSnapshot = decoded["opencode-go"].map {
+                !$0.extras.contains { $0.label == "数据来源" && $0.value == "OpenCode 官网实时" }
+            } ?? false
             snapshots = decoded.mapValues { sanitizeSnapshotForDisplay($0) }
+            // 旧版本曾缓存本机估算值。迁移时立即清掉，避免官网请求失败时继续显示旧数据。
+            if containsLegacyOpenCodeSnapshot {
+                saveSnapshotsToCache()
+            }
         } catch {
             dataManagerLogger.error("缓存加载失败：\(error.localizedDescription)")
         }
     }
 
     private func sanitizeSnapshotForDisplay(_ snapshot: UsageSnapshot) -> UsageSnapshot {
+        if snapshot.providerID == "opencode-go",
+           !snapshot.extras.contains(where: { $0.label == "数据来源" && $0.value == "OpenCode 官网实时" })
+        {
+            return snapshot.removingDisplayData()
+        }
         guard snapshot.requiresUserAction || snapshot.errorKind == .quotaUnavailable else { return snapshot }
         return snapshot.removingDisplayData()
     }

@@ -25,6 +25,7 @@ dist/
 *.app
 *.dmg
 *.pkg
+package.sh
 
 # Logs and temporary files
 *.log

@@ -4,8 +4,7 @@ import Foundation
 
 /// OpenCode Go 用量提供者。
 ///
-/// 优先读取已登录 OpenCode 官网工作区返回的实时百分比与刷新时间；本机
-/// `opencode.db` 仅在官网会话不可用时作为估算兜底。
+/// 读取已登录 OpenCode 官网工作区返回的实时百分比与刷新时间。
 final class OpenCodeGoProvider: AIToolProvider, Sendable {
 
     let id = "opencode-go"
@@ -15,36 +14,17 @@ final class OpenCodeGoProvider: AIToolProvider, Sendable {
     private static let baseURL = URL(string: "https://opencode.ai")!
     private static let serverURL = URL(string: "https://opencode.ai/_server")!
     private static let workspaceServerID = "def39973159c7f0483d8793a822b8dbb10d067e12c65455fcb4608459ba0234f"
-    private static let authPath = NSString(string: "~/.local/share/opencode/auth.json").expandingTildeInPath
-    private static let databasePath = NSString(string: "~/.local/share/opencode/opencode.db").expandingTildeInPath
     private static let userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
 
-    private static let fiveHourLimit = 12.0
-    private static let weeklyLimit = 30.0
-    private static let monthlyLimit = 60.0
-
     func detect() async -> Bool {
-        Self.hasOfficialSession || Self.hasLocalCredentials
+        Self.hasOfficialSession
     }
 
     func fetchUsage() async throws -> UsageSnapshot {
-        if let cookie = Self.readOfficialCookie() {
-            do {
-                return try await Self.fetchOfficialUsage(cookie: cookie)
-            } catch {
-                // 控制台内部接口变动、离线或 Cookie 过期时仍保留本机历史兜底，
-                // 但通过数据来源明确告诉用户这不是官网实时数据。
-                if let fallback = try? fetchLocalUsage(source: "本机历史估算（官网实时获取失败）") {
-                    return fallback
-                }
-                if let providerError = error as? ProviderError {
-                    throw providerError
-                }
-                throw ProviderError.networkError(error)
-            }
+        guard let cookie = Self.readOfficialCookie() else {
+            throw ProviderError.actionRequired("请在设置中登录 OpenCode 官网")
         }
-
-        return try fetchLocalUsage(source: "OpenCode 本机历史估算")
+        return try await Self.fetchOfficialUsage(cookie: cookie)
     }
 
     // MARK: - 官网实时额度
@@ -285,96 +265,4 @@ final class OpenCodeGoProvider: AIToolProvider, Sendable {
         let resetInSeconds: Int
     }
 
-    // MARK: - 本机估算兜底
-
-    private func fetchLocalUsage(source: String) throws -> UsageSnapshot {
-        guard Self.loadAPIKey() != nil else {
-            throw ProviderError.actionRequired("请在设置中登录 OpenCode 官网，或先在 OpenCode 中连接 OpenCode Go")
-        }
-        guard FileManager.default.fileExists(atPath: Self.databasePath) else {
-            throw ProviderError.quotaUnavailable("尚未找到 OpenCode 本地使用记录；请先用 OpenCode Go 完成一次请求")
-        }
-
-        let rows: [SQLiteService.OpenCodeUsageRow]
-        do {
-            rows = try SQLiteService.readOpenCodeGoUsageRows(dbPath: Self.databasePath)
-        } catch {
-            throw ProviderError.parseError("无法读取 OpenCode 本地使用记录：\(error.localizedDescription)")
-        }
-        guard !rows.isEmpty else {
-            throw ProviderError.quotaUnavailable("尚未找到 OpenCode Go 使用记录；请先完成一次请求")
-        }
-
-        let now = Date()
-        let calendar = Self.utcCalendar
-        let fiveHoursAgo = now.addingTimeInterval(-5 * 60 * 60)
-        let weekStart = calendar.dateInterval(of: .weekOfYear, for: now)?.start ?? now
-        let nextWeek = calendar.date(byAdding: .weekOfYear, value: 1, to: weekStart)
-        let subscriptionStartedAt = Self.subscriptionStartedAt() ?? rows.map(\.createdAt).min() ?? now
-        let monthlyBounds = Self.monthlyBounds(now: now, subscribedAt: subscriptionStartedAt)
-        let rollingRows = rows.filter { $0.createdAt >= fiveHoursAgo && $0.createdAt <= now }
-        let rollingReset = (rollingRows.map(\.createdAt).min() ?? now).addingTimeInterval(5 * 60 * 60)
-
-        return UsageSnapshot(
-            providerID: id,
-            fetchedAt: now,
-            windows: [],
-            pools: [
-                UsagePool(label: "5h", used: sum(rollingRows), limit: Self.fiveHourLimit, unit: "USD", resetsAt: rollingReset, displayRemainingPercentOnly: true),
-                UsagePool(label: "7d", used: sum(rows.filter { $0.createdAt >= weekStart && $0.createdAt < (nextWeek ?? now) }), limit: Self.weeklyLimit, unit: "USD", resetsAt: nextWeek, displayRemainingPercentOnly: true),
-                UsagePool(label: "月度", used: sum(rows.filter { $0.createdAt >= monthlyBounds.start && $0.createdAt < monthlyBounds.end }), limit: Self.monthlyLimit, unit: "USD", resetsAt: monthlyBounds.end, displayRemainingPercentOnly: true)
-            ],
-            extras: [UsageExtra(label: "数据来源", value: source)],
-            planName: "Go",
-            accountEmail: nil,
-            billingCycleEnd: monthlyBounds.end
-        )
-    }
-
-    private static var utcCalendar: Calendar {
-        var calendar = Calendar(identifier: .iso8601)
-        calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? .current
-        return calendar
-    }
-
-    private func sum(_ rows: [SQLiteService.OpenCodeUsageRow]) -> Double {
-        rows.reduce(0) { $0 + $1.cost }
-    }
-
-    private static func subscriptionStartedAt() -> Date? {
-        guard let attributes = try? FileManager.default.attributesOfItem(atPath: authPath) else { return nil }
-        return attributes[.modificationDate] as? Date ?? attributes[.creationDate] as? Date
-    }
-
-    private static func monthlyBounds(now: Date, subscribedAt: Date) -> (start: Date, end: Date) {
-        let calendar = utcCalendar
-        let subscribed = calendar.dateComponents([.day, .hour, .minute, .second, .nanosecond], from: subscribedAt)
-        func anchor(year: Int, month: Int) -> Date {
-            let firstDay = calendar.date(from: DateComponents(calendar: calendar, timeZone: calendar.timeZone, year: year, month: month, day: 1))!
-            let maximumDay = calendar.range(of: .day, in: .month, for: firstDay)!.count
-            return calendar.date(from: DateComponents(calendar: calendar, timeZone: calendar.timeZone, year: year, month: month, day: min(subscribed.day ?? 1, maximumDay), hour: subscribed.hour, minute: subscribed.minute, second: subscribed.second, nanosecond: subscribed.nanosecond))!
-        }
-        let current = calendar.dateComponents([.year, .month], from: now)
-        var start = anchor(year: current.year!, month: current.month!)
-        if start > now {
-            let previous = calendar.date(byAdding: .month, value: -1, to: start)!
-            let components = calendar.dateComponents([.year, .month], from: previous)
-            start = anchor(year: components.year!, month: components.month!)
-        }
-        return (start, calendar.date(byAdding: .month, value: 1, to: start)!)
-    }
-
-    private static func loadAPIKey() -> String? {
-        guard let data = FileManager.default.contents(atPath: authPath),
-              let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let entry = root["opencode-go"] as? [String: Any],
-              let key = entry["key"] as? String
-        else { return nil }
-        let trimmedKey = key.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmedKey.isEmpty ? nil : trimmedKey
-    }
-
-    static var hasLocalCredentials: Bool {
-        loadAPIKey() != nil
-    }
 }
