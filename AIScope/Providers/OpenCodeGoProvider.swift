@@ -189,7 +189,7 @@ final class OpenCodeGoProvider: AIToolProvider, Sendable {
         return firstCapture(in: normalized, pattern: pattern)
     }
 
-    private static func parseOfficialUsage(from text: String) throws -> OfficialUsage {
+    static func parseOfficialUsage(from text: String) throws -> OfficialUsage {
         let normalized = normalize(text)
         guard let rolling = parseWindow(named: "rollingUsage", in: normalized),
               let weekly = parseWindow(named: "weeklyUsage", in: normalized),
@@ -201,9 +201,9 @@ final class OpenCodeGoProvider: AIToolProvider, Sendable {
     }
 
     private static func parseWindow(named name: String, in text: String) -> OfficialWindow? {
-        guard let range = text.range(of: name, options: [.caseInsensitive]) else { return nil }
-        // 官网水合数据可能是压缩 JS 或 JSON；在名称后的有限范围内读取同一窗口字段。
-        let fragment = String(text[range.lowerBound...].prefix(1_600))
+        // 页面水合数据可能包含多份相似字段。必须先截出指定窗口自己的对象，
+        // 否则从名称后按固定长度搜索会读到相邻窗口或元数据中的百分比。
+        guard let fragment = objectFragment(named: name, in: text) else { return nil }
         let percentPatterns = [
             #"[\"']?usagePercent[\"']?\s*:\s*([0-9]+(?:\.[0-9]+)?)"#,
             #"[\"']?usedPercent[\"']?\s*:\s*([0-9]+(?:\.[0-9]+)?)"#
@@ -212,14 +212,122 @@ final class OpenCodeGoProvider: AIToolProvider, Sendable {
             #"[\"']?resetInSec(?:onds)?[\"']?\s*:\s*([0-9]+(?:\.[0-9]+)?)"#,
             #"[\"']?resetSeconds[\"']?\s*:\s*([0-9]+(?:\.[0-9]+)?)"#
         ]
-        guard var percent = firstDouble(in: fragment, patterns: percentPatterns),
+        guard let percent = firstDouble(in: fragment, patterns: percentPatterns),
               let reset = firstDouble(in: fragment, patterns: resetPatterns)
         else { return nil }
-        if (0...1).contains(percent) { percent *= 100 }
         return OfficialWindow(
             usedPercent: min(100, max(0, percent)),
             resetInSeconds: max(0, Int(reset.rounded()))
         )
+    }
+
+    private static func objectFragment(named name: String, in text: String) -> String? {
+        var searchStart = text.startIndex
+
+        while searchStart < text.endIndex,
+              let nameRange = text.range(
+                  of: name,
+                  options: [.caseInsensitive],
+                  range: searchStart..<text.endIndex
+              ) {
+            searchStart = nameRange.upperBound
+            var cursor = nameRange.upperBound
+
+            // A real object key is followed by an optional closing quote, then a colon.
+            skipCharacters(in: text, cursor: &cursor) { character in
+                character.isWhitespace || character == "\"" || character == "'"
+            }
+            guard cursor < text.endIndex, text[cursor] == ":" else { continue }
+            cursor = text.index(after: cursor)
+            skipCharacters(in: text, cursor: &cursor) { $0.isWhitespace }
+
+            // SolidStart may assign the object through a hydration reference:
+            // monthlyUsage:$R[37]={...}
+            if cursor < text.endIndex, text[cursor] != "{" {
+                guard skipHydrationReference(in: text, cursor: &cursor) else { continue }
+            }
+            guard cursor < text.endIndex, text[cursor] == "{" else { continue }
+
+            guard let end = matchingObjectEnd(in: text, from: cursor) else { return nil }
+            return String(text[cursor...end])
+        }
+
+        return nil
+    }
+
+    private static func skipHydrationReference(in text: String, cursor: inout String.Index) -> Bool {
+        guard consume("$", in: text, cursor: &cursor),
+              consume("R", in: text, cursor: &cursor),
+              consume("[", in: text, cursor: &cursor)
+        else { return false }
+
+        let digitsStart = cursor
+        skipCharacters(in: text, cursor: &cursor) { $0.isNumber }
+        guard cursor > digitsStart,
+              consume("]", in: text, cursor: &cursor)
+        else { return false }
+
+        skipCharacters(in: text, cursor: &cursor) { $0.isWhitespace }
+        guard consume("=", in: text, cursor: &cursor) else { return false }
+        skipCharacters(in: text, cursor: &cursor) { $0.isWhitespace }
+        return true
+    }
+
+    private static func consume(
+        _ expected: Character,
+        in text: String,
+        cursor: inout String.Index
+    ) -> Bool {
+        guard cursor < text.endIndex, text[cursor] == expected else { return false }
+        cursor = text.index(after: cursor)
+        return true
+    }
+
+    private static func skipCharacters(
+        in text: String,
+        cursor: inout String.Index,
+        while predicate: (Character) -> Bool
+    ) {
+        while cursor < text.endIndex, predicate(text[cursor]) {
+            cursor = text.index(after: cursor)
+        }
+    }
+
+    private static func matchingObjectEnd(in text: String, from start: String.Index) -> String.Index? {
+        var depth = 0
+        var quote: Character?
+        var escaped = false
+        var cursor = start
+
+        while cursor < text.endIndex {
+            let character = text[cursor]
+
+            if let activeQuote = quote {
+                if escaped {
+                    escaped = false
+                } else if character == "\\" {
+                    escaped = true
+                } else if character == activeQuote {
+                    quote = nil
+                }
+            } else {
+                switch character {
+                case "\"", "'":
+                    quote = character
+                case "{":
+                    depth += 1
+                case "}":
+                    depth -= 1
+                    if depth == 0 { return cursor }
+                default:
+                    break
+                }
+            }
+
+            cursor = text.index(after: cursor)
+        }
+
+        return nil
     }
 
     private static func normalize(_ text: String) -> String {
@@ -254,13 +362,13 @@ final class OpenCodeGoProvider: AIToolProvider, Sendable {
         return nil
     }
 
-    private struct OfficialUsage {
+    struct OfficialUsage {
         let rolling: OfficialWindow
         let weekly: OfficialWindow
         let monthly: OfficialWindow
     }
 
-    private struct OfficialWindow {
+    struct OfficialWindow {
         let usedPercent: Double
         let resetInSeconds: Int
     }
